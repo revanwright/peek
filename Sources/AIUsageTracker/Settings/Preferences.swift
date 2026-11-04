@@ -47,7 +47,7 @@ enum AlertSettings {
 }
 
 /// An AI app whose time-in-front is tracked.
-struct TrackedApp: Identifiable, Hashable {
+struct TrackedApp: Identifiable, Hashable, Codable {
     var id: String { bundleID }
     let bundleID: String
     let name: String

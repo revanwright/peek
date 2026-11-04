@@ -73,10 +73,37 @@ private struct GeneralTab: View {
                 Text("Checking less often is gentler on claude.ai. Usage also refreshes when your Mac wakes and when you open the menu.")
                     .settingsFootnote()
             }
+
+            Section {
+                AboutRow()
+            }
         }
         .formStyle(.grouped)
-        .frame(height: 230)
+        .frame(height: 320)
         .onAppear { openAtLogin = LoginItem.isEnabled }
+    }
+}
+
+/// App icon, name, and version.
+private struct AboutRow: View {
+    private var version: String {
+        let info = Bundle.main.infoDictionary
+        let short = info?["CFBundleShortVersionString"] as? String ?? "–"
+        let build = info?["CFBundleVersion"] as? String ?? "–"
+        return "Version \(short) (\(build))"
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .frame(width: 40, height: 40)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("AI Usage Tracker").font(.headline)
+                Text(version).font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
     }
 }
 
@@ -84,6 +111,7 @@ private struct GeneralTab: View {
 
 private struct SourcesTab: View {
     let hooks: HookControls
+    private var trackedApps: TrackedApps { TrackedApps.shared }
     @AppStorage(PrefKey.trackClaudeLimit) private var trackLimit = true
     @AppStorage(PrefKey.trackClaudeCode) private var trackCode = true
     @State private var confirmingInstall = false
@@ -107,20 +135,32 @@ private struct SourcesTab: View {
             }
 
             Section {
-                ForEach(TrackedApp.defaults) { AppSourceRow(app: $0) }
+                if trackedApps.apps.isEmpty {
+                    Text("No apps yet. Add the AI apps you use.")
+                        .foregroundStyle(.secondary)
+                }
+                ForEach(trackedApps.apps) { app in
+                    AppSourceRow(app: app)
+                        .contextMenu {
+                            Button("Remove \(app.name)", role: .destructive) {
+                                withAnimation { trackedApps.remove(app) }
+                            }
+                        }
+                }
             } header: {
                 Text("AI apps")
             } footer: {
-                HStack {
-                    Text("Time counts while the app is in front.").settingsFootnote()
+                HStack(alignment: .top) {
+                    Text("Time counts while the app is in front. Right-click an app to remove it.")
+                        .settingsFootnote()
                     Spacer()
-                    Button("Add App…") {}
+                    Button("Add App…") { trackedApps.chooseAndAdd() }
                         .controlSize(.small)
                 }
             }
         }
         .formStyle(.grouped)
-        .frame(height: 420)
+        .frame(height: 460)
         .alert("Connect to Claude Code?", isPresented: $confirmingInstall) {
             Button("Connect", action: hooks.install)
             Button("Cancel", role: .cancel) {}

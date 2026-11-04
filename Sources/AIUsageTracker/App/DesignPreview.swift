@@ -42,9 +42,17 @@ enum DesignPreview {
     // MARK: - Dropdown window
 
     /// The dropdown's content in an ordinary window, on the same frosted material menus use.
+    @MainActor private static var dropdownHosting: NSHostingView<AnyView>?
+
+    @MainActor
+    private static func panel(_ model: DashboardModel) -> AnyView {
+        AnyView(UsagePanel(model: model).background(snapshotBackdrop).ignoresSafeArea())
+    }
+
     @MainActor
     static func makeDropdownWindow() -> NSWindow {
-        let hosting = NSHostingView(rootView: UsagePanel(model: .sample).background(snapshotBackdrop).ignoresSafeArea())
+        let hosting = NSHostingView(rootView: panel(.sample))
+        dropdownHosting = hosting
         let size = hosting.fittingSize
         let frame = NSRect(origin: .zero, size: size)
 
@@ -97,6 +105,23 @@ enum DesignPreview {
         capture(dropdown.contentView, to: folder.appending(path: "dropdown-\(mode).png"))
         saveMenuBarSample(dark: mode == "dark", to: folder.appending(path: "menubar-\(mode).png"))
 
+        // The dropdown's other states: signed out, loading, errors, and so on.
+        if let hosting = dropdownHosting {
+            let topLeft = NSPoint(x: dropdown.frame.minX, y: dropdown.frame.maxY)
+            for (name, model) in DashboardModel.sampleStates {
+                hosting.rootView = panel(model)
+                try? await Task.sleep(for: .seconds(0.3))
+                hosting.invalidateIntrinsicContentSize()
+                hosting.layoutSubtreeIfNeeded()
+                let size = hosting.fittingSize
+                dropdown.setContentSize(size)
+                dropdown.setFrameTopLeftPoint(topLeft)
+                hosting.frame = NSRect(origin: .zero, size: size)
+                try? await Task.sleep(for: .seconds(0.5))
+                capture(hosting, to: folder.appending(path: "state-\(name)-\(mode).png"), trimBottom: true)
+            }
+        }
+
         for tab in SettingsTab.allCases {
             UserDefaults.standard.set(tab.rawValue, forKey: PrefKey.settingsTab)
             try? await Task.sleep(for: .seconds(1))
@@ -147,10 +172,23 @@ enum DesignPreview {
         try? rep.representation(using: .png, properties: [:])?.write(to: url)
     }
 
+    /// - Parameter trimBottom: Cuts off empty (see-through) rows at the bottom, left over
+    ///   when the dropdown shrinks between states.
     @MainActor
-    private static func capture(_ view: NSView?, to url: URL) {
+    private static func capture(_ view: NSView?, to url: URL, trimBottom: Bool = false) {
         guard let view, let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
         view.cacheDisplay(in: view.bounds, to: rep)
-        try? rep.representation(using: .png, properties: [:])?.write(to: url)
+        var output: NSBitmapImageRep = rep
+        if trimBottom, let cg = rep.cgImage {
+            // The backdrop is solid, so the first see-through row marks the end of the content.
+            var height = rep.pixelsHigh
+            for y in stride(from: rep.pixelsHigh - 1, through: 0, by: -1) {
+                if (rep.colorAt(x: 4, y: y)?.alphaComponent ?? 0) > 0.5 { height = y + 1; break }
+            }
+            if height < rep.pixelsHigh, let cropped = cg.cropping(to: CGRect(x: 0, y: 0, width: rep.pixelsWide, height: height)) {
+                output = NSBitmapImageRep(cgImage: cropped)
+            }
+        }
+        try? output.representation(using: .png, properties: [:])?.write(to: url)
     }
 }

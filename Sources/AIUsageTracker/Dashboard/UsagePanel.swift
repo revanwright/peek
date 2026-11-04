@@ -17,7 +17,14 @@ struct UsagePanel: View {
 
             claudeSection
 
-            if let sessions = model.sessions { SessionsSection(sessions: sessions, onOpen: onOpenSession) }
+            if let sessions = model.sessions {
+                SessionsSection(
+                    sessions: sessions,
+                    isConnected: model.claudeCodeConnected,
+                    onOpen: onOpenSession,
+                    onConnect: { showSettings(.sources) }
+                )
+            }
             if let apps = model.apps { AppsSection(apps: apps) }
 
             footer
@@ -58,14 +65,22 @@ struct UsagePanel: View {
             Spacer()
 
             IconButton(symbol: "gearshape", help: "Settings…") {
-                NSApp.activate()
-                openSettings()
+                showSettings(nil)
             }
             IconButton(symbol: "power", help: "Quit AI Usage Tracker") {
                 NSApp.terminate(nil)
             }
         }
         .padding(.leading, 4)
+    }
+}
+
+extension UsagePanel {
+    /// Opens Settings in front of other apps, optionally on a specific tab.
+    func showSettings(_ tab: SettingsTab?) {
+        if let tab { UserDefaults.standard.set(tab.rawValue, forKey: PrefKey.settingsTab) }
+        NSApp.activate()
+        openSettings()
     }
 }
 
@@ -210,7 +225,9 @@ extension MessageCard where Actions == EmptyView {
 
 private struct SessionsSection: View {
     let sessions: [DashboardModel.CodeSession]
+    let isConnected: Bool
     let onOpen: (DashboardModel.CodeSession) -> Void
+    let onConnect: () -> Void
 
     var body: some View {
         let sorted = sessions.sorted { ($0.status.sortOrder, $1.since) < ($1.status.sortOrder, $0.since) }
@@ -220,7 +237,18 @@ private struct SessionsSection: View {
             SectionHeader(title: "Claude Code", detail: needYou > 0 ? "\(needYou) need\(needYou == 1 ? "s" : "") you" : nil,
                           detailTint: .orange)
             VStack(spacing: 0) {
-                if sorted.isEmpty {
+                if !isConnected {
+                    HStack {
+                        Text("Not connected to Claude Code")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Connect…", action: onConnect)
+                            .controlSize(.small)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 8)
+                } else if sorted.isEmpty {
                     Text("No active sessions")
                         .font(.callout)
                         .foregroundStyle(.tertiary)

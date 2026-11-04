@@ -7,6 +7,8 @@ struct DashboardModel {
     var claude: ClaudeState
     /// nil hides the section (turned off in Settings, or not built yet).
     var sessions: [CodeSession]?
+    /// False when Claude Code isn't set up to report to the app yet.
+    var claudeCodeConnected = true
     var apps: [AppTime]?
     var updatedAt: Date?
     /// True when this is made-up preview data. The panel shows a "Sample data" badge.
@@ -81,6 +83,28 @@ extension DashboardModel {
         )
     }
 
+    /// The dropdown's other states, for reviewing the design (sample data only).
+    static var sampleStates: [(String, DashboardModel)] {
+        let now = Date()
+        let high = ClaudeLimit(
+            plan: "Pro",
+            session: .init(percent: 91, resetsAt: now.addingTimeInterval(48 * 60)),
+            weekly: .init(percent: 72, resetsAt: now.addingTimeInterval(2 * 24 * 3600))
+        )
+        var states: [(String, DashboardModel)] = [
+            ("signed-out", DashboardModel(claude: .signedOut, sessions: [], apps: nil, updatedAt: nil, isSample: true)),
+            ("loading", DashboardModel(claude: .loading, sessions: [], apps: nil, updatedAt: nil, isSample: true)),
+            ("error", DashboardModel(claude: .unavailable("claude.ai's bot check didn't let the app through."), sessions: [], apps: nil, updatedAt: nil, isSample: true)),
+            ("high-and-stale", DashboardModel(claude: .ready(high, warning: "Couldn't reach claude.ai."), sessions: [], apps: nil, updatedAt: now.addingTimeInterval(-12 * 60), isSample: true)),
+        ]
+        var notConnected = sample
+        notConnected.sessions = []
+        notConnected.claudeCodeConnected = false
+        notConnected.apps = nil
+        states.append(("not-connected", notConnected))
+        return states
+    }
+
     static func appIcon(_ path: String) -> NSImage {
         NSWorkspace.shared.icon(forFile: path)
     }
@@ -94,6 +118,7 @@ extension DashboardModel {
         DashboardModel(
             claude: claudeState(usage),
             sessions: claudeCode.isEnabled ? claudeCode.sessions.map(CodeSession.init) : nil,
+            claudeCodeConnected: claudeCode.hookStatus == .installed || claudeCode.hookStatus == .unknown,
             apps: nil,  // AI app time: later build step
             updatedAt: usage.snapshot?.fetchedAt
         )
