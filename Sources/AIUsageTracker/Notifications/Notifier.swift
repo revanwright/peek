@@ -103,7 +103,7 @@ final class Notifier: NSObject {
         pendingSessionNudges[session.id] = nil
 
         guard Preferences.isOn(PrefKey.sessionAlerts), let message = nudge(for: session) else { return }
-        if session.entrypoint == "claude-desktop", !Preferences.isOn(PrefKey.sessionAlertClaudeApp, default: false) { return }
+        if session.isInClaudeApp, !Preferences.isOn(PrefKey.sessionAlertClaudeApp, default: false) { return }
 
         pendingSessionNudges[session.id] = Task { [weak self] in
             guard let self else { return }

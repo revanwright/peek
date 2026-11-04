@@ -20,18 +20,25 @@ final class ClaudeCodeStore {
         let status: Status
         let since: Date
         let entrypoint: String?
+        /// Shown instead of the folder name (Cowork tasks use their title).
+        var name: String? = nil
 
         /// The app the session runs in, for display ("VS Code", ...). nil if unknown.
         var clientName: String? {
             switch entrypoint {
             case "claude-vscode": "VS Code"
             case "claude-desktop": "the Claude app"
+            case "local-agent": "Cowork"
             case "cli": "Terminal"
             default: nil
             }
         }
 
+        /// Sessions that run inside the Claude desktop app (its Code tab, or Cowork).
+        var isInClaudeApp: Bool { entrypoint == "claude-desktop" || entrypoint == "local-agent" }
+
         var project: String {
+            if let name { return name }
             let folder = URL(fileURLWithPath: cwd).standardizedFileURL
             if folder == FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL { return "Home" }
             return folder.lastPathComponent
@@ -43,14 +50,16 @@ final class ClaudeCodeStore {
     }
 
     private(set) var sessions: [Session] = []
+    private var hookSessions: [Session] = []
+    private var coworkSessions: [Session] = []
+    private let cowork = CoworkWatcher()
+    private var coworkTask: Task<Void, Never>?
     private(set) var hookStatus: HookStatus = .unknown
 
     var isEnabled: Bool { Preferences.isOn(PrefKey.trackClaudeCode) }
 
     private let folder = AppPaths.supportDirectory.appending(path: "sessions", directoryHint: .isDirectory)
     private var watcher: DispatchSourceFileSystemObject?
-    /// Notifications only fire for changes seen after the app starts, not for old state.
-    private var hasLoadedOnce = false
     private var sweepTask: Task<Void, Never>?
 
     init() {
@@ -70,6 +79,38 @@ final class ClaudeCodeStore {
             }
         }
         Task { await checkHooks() }
+        // Cowork has no hooks; its task logs are checked every few seconds instead.
+        coworkTask = Task { [weak self] in
+            while !Task.isCancelled {
+                await self?.reloadCowork()
+                try? await Task.sleep(for: .seconds(5))
+            }
+        }
+    }
+
+    var isCoworkEnabled: Bool { Preferences.isOn(PrefKey.trackCowork) }
+
+    private func reloadCowork() async {
+        guard isCoworkEnabled else {
+            if !coworkSessions.isEmpty { coworkSessions = []; publish() }
+            return
+        }
+        let watcher = cowork
+        let tasks = await Task.detached { watcher.scan() }.value
+        let found = tasks.map { task in
+            Session(
+                id: "cowork-\(task.id)",
+                cwd: "",
+                status: Session.Status(task.status),
+                since: task.lastActivity,
+                entrypoint: "local-agent",
+                name: task.title
+            )
+        }
+        if found != coworkSessions {
+            coworkSessions = found
+            publish()
+        }
     }
 
     // MARK: - Reading sessions
@@ -106,17 +147,24 @@ final class ClaudeCodeStore {
             let since = (record["status_since"] as? NSNumber).map { Date(timeIntervalSince1970: $0.doubleValue) } ?? updated
             found.append(Session(id: id, cwd: cwd, status: status, since: since, entrypoint: record["entrypoint"] as? String))
         }
-        found.sort { $0.since > $1.since }
-        guard found != sessions else { return }
+        guard found != hookSessions else { return }
+        hookSessions = found
+        publish()
+    }
 
-        if hasLoadedOnce {
-            let previous = Dictionary(uniqueKeysWithValues: sessions.map { ($0.id, $0.status) })
-            for session in found where previous[session.id] != session.status {
+    /// Combines hook-reported and Cowork sessions, and nudges about any whose status changed.
+    private func publish() {
+        let combined = (hookSessions + coworkSessions).sorted { $0.since > $1.since }
+        guard combined != sessions else { return }
+        // Only status *changes* nudge; sessions seen for the first time (including
+        // everything found when the app starts) don't.
+        let previous = Dictionary(uniqueKeysWithValues: sessions.map { ($0.id, $0.status) })
+        for session in combined {
+            if let before = previous[session.id], before != session.status {
                 Notifier.shared.sessionChanged(session)
             }
         }
-        hasLoadedOnce = true
-        sessions = found
+        sessions = combined
     }
 
     /// A session is gone when its Claude Code process has exited, or (if we never
@@ -138,7 +186,7 @@ final class ClaudeCodeStore {
         case "claude-vscode":
             guard let vscode = workspace.urlForApplication(withBundleIdentifier: "com.microsoft.VSCode") else { return }
             workspace.open([URL(fileURLWithPath: session.cwd)], withApplicationAt: vscode, configuration: NSWorkspace.OpenConfiguration())
-        case "claude-desktop":
+        case "claude-desktop", "local-agent":
             if let claude = workspace.urlForApplication(withBundleIdentifier: "com.anthropic.claudefordesktop") {
                 workspace.openApplication(at: claude, configuration: NSWorkspace.OpenConfiguration())
             }
@@ -196,5 +244,16 @@ final class ClaudeCodeStore {
             process.waitUntilExit()
             return (process.terminationStatus, String(decoding: data, as: UTF8.self))
         }.value
+    }
+}
+
+extension ClaudeCodeStore.Session.Status {
+    init(_ status: CoworkWatcher.Status) {
+        switch status {
+        case .working: self = .working
+        case .waitingForReply: self = .waitingForReply
+        case .finished: self = .finished
+        case .idle: self = .idle
+        }
     }
 }

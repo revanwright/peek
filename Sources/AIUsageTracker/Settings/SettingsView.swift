@@ -114,6 +114,7 @@ private struct SourcesTab: View {
     private var trackedApps: TrackedApps { TrackedApps.shared }
     @AppStorage(PrefKey.trackClaudeLimit) private var trackLimit = true
     @AppStorage(PrefKey.trackClaudeCode) private var trackCode = true
+    @AppStorage(PrefKey.trackCowork) private var trackCowork = true
     @State private var confirmingInstall = false
 
     var body: some View {
@@ -132,6 +133,12 @@ private struct SourcesTab: View {
                     isOn: $trackCode
                 )
                 HookStatusRow(hooks: hooks, confirmingInstall: $confirmingInstall)
+                SourceRow(
+                    icon: .symbol("person.2.fill", .teal),
+                    title: "Cowork tasks",
+                    subtitle: "Status from the Claude app's task logs",
+                    isOn: $trackCowork
+                )
             }
 
             Section {
@@ -160,7 +167,7 @@ private struct SourcesTab: View {
             }
         }
         .formStyle(.grouped)
-        .frame(height: 460)
+        .frame(height: 520)
         .alert("Connect to Claude Code?", isPresented: $confirmingInstall) {
             Button("Connect", action: hooks.install)
             Button("Cancel", role: .cancel) {}
@@ -304,12 +311,12 @@ private struct NotificationsTab: View {
                     Toggle("Needs permission", isOn: $alertPermission)
                     Toggle("Waiting for my reply", isOn: $alertReply)
                     Toggle("Finished", isOn: $alertFinished)
-                    Toggle("Include sessions in the Claude app", isOn: $alertClaudeApp)
+                    Toggle("Include the Claude app (Code tab and Cowork)", isOn: $alertClaudeApp)
                 }
                 .padding(.leading, 18)
                 .disabled(!sessionAlerts)
             } header: {
-                Text("Claude Code")
+                Text("Sessions")
             } footer: {
                 Text("Sent after a few seconds, so you aren't pinged for something you answer right away. The Claude app already notifies you about its own sessions, so those are skipped unless you include them.")
                     .settingsFootnote()

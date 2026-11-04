@@ -234,7 +234,7 @@ private struct SessionsSection: View {
         let needYou = sessions.filter { $0.status == .needsPermission || $0.status == .waitingForReply }.count
 
         VStack(alignment: .leading, spacing: 6) {
-            SectionHeader(title: "Claude Code", detail: needYou > 0 ? "\(needYou) need\(needYou == 1 ? "s" : "") you" : nil,
+            SectionHeader(title: "Sessions", detail: needYou > 0 ? "\(needYou) need\(needYou == 1 ? "s" : "") you" : nil,
                           detailTint: .orange)
             VStack(spacing: 0) {
                 if !isConnected {
