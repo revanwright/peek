@@ -5,6 +5,7 @@ struct AIUsageTrackerApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var usage = UsageStore()
     @State private var claudeCode = ClaudeCodeStore()
+    @State private var appTime = AppTimeTracker()
 
     // Read here so the menu bar redraws as soon as these settings change.
     @AppStorage(PrefKey.menuBarStyle) private var menuBarStyle = MenuBarStyle.ringOnly.rawValue
@@ -17,7 +18,7 @@ struct AIUsageTrackerApp: App {
                 UsagePanel(model: .sample)
             } else {
                 UsagePanel(
-                    model: .live(usage: usage, claudeCode: claudeCode),
+                    model: .live(usage: usage, claudeCode: claudeCode, appTime: appTime),
                     onSignIn: { usage.signIn() },
                     onRetry: { Task { await usage.refresh(force: true) } },
                     onOpen: {

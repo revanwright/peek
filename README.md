@@ -2,13 +2,14 @@
 
 A native macOS menu bar app that shows how much of my Claude plan limit I've used, built with SwiftUI.
 
-**Status:** in progress. The Claude limit reading, the dropdown, live Claude Code session status, and notifications are working; AI-app time tracking is next.
+**Status:** feature-complete for its first version: Claude limit reading, the dropdown, live Claude Code and Cowork status, notifications, and time tracking for other AI apps.
 
 ## What it does
 
 - **Menu bar ring** that fills up with your current 5-hour Claude usage and shifts from green to orange to red.
 - **Dropdown** with rings for the current session and the weekly limit, plus reset times.
 - **Sessions**: each open Claude Code session's project and status (working, needs permission, waiting for your reply, finished), reported by Claude Code hooks. Works in the terminal, the VS Code extension, and the Claude desktop app's Code tab. Cowork tasks in the Claude app are listed too (working, waiting for your reply, finished).
+- **AI Apps Today**: time spent in other AI apps (ChatGPT, Muse, or any app you add), counted only while the app is in front and you're actually at the Mac (pauses when idle 2+ minutes, locked, or asleep). No special permissions needed.
 - **Notifications** when you reach your warning level (80% by default), when a limit you pushed past it resets, and when a Claude Code session needs you.
 - **Settings window** with standard Mac tabs: General, Sources, Notifications, Account.
 - Full light and dark mode support, using system fonts and materials.
@@ -41,7 +42,7 @@ No Xcode required, only Apple's free Command Line Tools.
 ./scripts/run.sh                 # build, install to ~/Applications, and launch
 ./scripts/snapshot-design.sh     # save light/dark screenshots with sample data to build/design-shots
 ./scripts/make-icon.sh           # redraw the app icon (design lives in scripts/make-icon.swift)
-./scripts/test.sh                # run the checks (Cowork status rules + a read-only pass over real tasks)
+./scripts/test.sh                # run the checks (Cowork status rules, app-time counting rules)
 ```
 
 Notes:
@@ -58,6 +59,7 @@ Sources/AIUsageTracker/
   ClaudeLimit/  claude.ai sign-in, usage reading, and refresh schedule
   ClaudeCode/   Live session list (hook helper + Cowork task logs), hook install/remove
   Notifications/ Usage warnings, reset pings, and session nudges
+  AppTime/      Time in other AI apps (counting rules in AppTimeLedger)
   Dashboard/    Menu bar icon and dropdown
   Design/       Shared colors, spacing, and the ring gauge
   Settings/     Settings window and saved preferences

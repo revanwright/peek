@@ -115,7 +115,7 @@ extension DashboardModel {
 
 extension DashboardModel {
     @MainActor
-    static func live(usage: UsageStore, claudeCode: ClaudeCodeStore) -> DashboardModel {
+    static func live(usage: UsageStore, claudeCode: ClaudeCodeStore, appTime: AppTimeTracker) -> DashboardModel {
         DashboardModel(
             claude: claudeState(usage),
             sessions: (claudeCode.isEnabled || claudeCode.isCoworkEnabled)
@@ -124,9 +124,24 @@ extension DashboardModel {
                     .map(CodeSession.init)
                 : nil,
             claudeCodeConnected: claudeCode.hookStatus == .installed || claudeCode.hookStatus == .unknown,
-            apps: nil,  // AI app time: later build step
+            apps: appTimes(appTime),
             updatedAt: usage.snapshot?.fetchedAt
         )
+    }
+
+    /// Today's time per tracked app. nil hides the section (no apps switched on).
+    @MainActor
+    private static func appTimes(_ tracker: AppTimeTracker) -> [AppTime]? {
+        let enabled = TrackedApps.shared.apps.filter { Preferences.isOn(PrefKey.trackApp($0.bundleID)) }
+        guard !enabled.isEmpty else { return nil }
+        return enabled.compactMap { app in
+            let seconds = tracker.today[app.bundleID] ?? 0
+            guard seconds >= 60 else { return nil }  // under a minute isn't worth a row
+            let icon = NSWorkspace.shared.urlForApplication(withBundleIdentifier: app.bundleID)
+                .map { NSWorkspace.shared.icon(forFile: $0.path) }
+                ?? NSImage(systemSymbolName: "app.dashed", accessibilityDescription: nil)!
+            return AppTime(bundleID: app.bundleID, name: app.name, icon: icon, seconds: seconds)
+        }
     }
 
     @MainActor
