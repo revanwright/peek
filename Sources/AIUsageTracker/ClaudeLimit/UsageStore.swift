@@ -76,6 +76,7 @@ final class UsageStore {
             snapshot = result.snapshot
             plan = result.plan
             phase = .ready
+            Notifier.shared.usageUpdated(result.snapshot)
         } catch ClaudeUsageClient.FetchError.signedOut {
             snapshot = nil
             phase = .needsSignIn

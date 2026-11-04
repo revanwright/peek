@@ -86,7 +86,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Log.write("launched args=\(CommandLine.arguments.dropFirst().joined(separator: " "))")
-        guard DesignPreview.isEnabled else { return }
+        guard DesignPreview.isEnabled else {
+            Task { await Notifier.shared.requestPermissionIfNeeded() }
+            return
+        }
         if let appearance = DesignPreview.appearance {
             NSApp.appearance = NSAppearance(named: appearance)
         }

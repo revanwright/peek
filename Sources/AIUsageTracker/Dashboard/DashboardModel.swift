@@ -129,12 +129,7 @@ extension DashboardModel.CodeSession {
         case .waitingForReply: .waitingForReply
         case .finished: .finished
         }
-        let client: String? = switch session.entrypoint {
-        case "claude-vscode": "VS Code"
-        case "claude-desktop": "Claude app"
-        case "cli": "Terminal"
-        default: nil
-        }
+        let client: String? = session.entrypoint == "claude-desktop" ? "Claude app" : session.clientName
         self.init(id: session.id, project: session.project, status: status, since: session.since, client: client)
     }
 }

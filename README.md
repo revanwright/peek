@@ -2,13 +2,14 @@
 
 A native macOS menu bar app that shows how much of my Claude plan limit I've used, built with SwiftUI.
 
-**Status:** in progress. The Claude limit reading, the dropdown, and live Claude Code session status are working; notifications and AI-app time tracking are next.
+**Status:** in progress. The Claude limit reading, the dropdown, live Claude Code session status, and notifications are working; AI-app time tracking is next.
 
 ## What it does
 
 - **Menu bar ring** that fills up with your current 5-hour Claude usage and shifts from green to orange to red.
 - **Dropdown** with rings for the current session and the weekly limit, plus reset times.
 - **Claude Code sessions**: each open session's project and status (working, needs permission, waiting for your reply, finished), reported by Claude Code hooks. Works in the terminal, the VS Code extension, and the Claude desktop app.
+- **Notifications** when you reach your warning level (80% by default), when a limit you pushed past it resets, and when a Claude Code session needs you.
 - **Settings window** with standard Mac tabs: General, Sources, Notifications, Account.
 - Full light and dark mode support, using system fonts and materials.
 
@@ -50,6 +51,7 @@ Sources/AIUsageTracker/
   App/          App entry point and design-preview mode
   ClaudeLimit/  claude.ai sign-in, usage reading, and refresh schedule
   ClaudeCode/   Live session list from the hook helper, hook install/remove
+  Notifications/ Usage warnings, reset pings, and session nudges
   Dashboard/    Menu bar icon and dropdown
   Design/       Shared colors, spacing, and the ring gauge
   Settings/     Settings window and saved preferences

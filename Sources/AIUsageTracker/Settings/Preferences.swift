@@ -18,6 +18,8 @@ enum PrefKey {
     static let sessionAlertPermission = "alert.sessions.permission"
     static let sessionAlertReply = "alert.sessions.reply"
     static let sessionAlertFinished = "alert.sessions.finished"
+    /// The Claude app already notifies you about its own sessions, so these are off by default.
+    static let sessionAlertClaudeApp = "alert.sessions.claudeApp"
 }
 
 enum MenuBarStyle: String, CaseIterable, Identifiable {

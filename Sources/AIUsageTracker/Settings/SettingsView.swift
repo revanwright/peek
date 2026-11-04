@@ -235,12 +235,13 @@ private struct NotificationsTab: View {
     @AppStorage(PrefKey.sessionAlertPermission) private var alertPermission = true
     @AppStorage(PrefKey.sessionAlertReply) private var alertReply = true
     @AppStorage(PrefKey.sessionAlertFinished) private var alertFinished = false
+    @AppStorage(PrefKey.sessionAlertClaudeApp) private var alertClaudeApp = false
 
     var body: some View {
         Form {
             Section {
                 Toggle("Warn me when I'm close to my limit", isOn: $warnEnabled)
-                LabeledContent("Warn at") {
+                LabeledContent("Warning level") {
                     HStack(spacing: 10) {
                         Slider(value: $warnAt, in: 50...95, step: 5)
                             .frame(width: 170)
@@ -249,10 +250,12 @@ private struct NotificationsTab: View {
                             .frame(width: 38, alignment: .trailing)
                     }
                 }
-                .disabled(!warnEnabled)
                 Toggle("Notify me when my limit resets", isOn: $notifyOnReset)
             } header: {
                 Text("Claude limit")
+            } footer: {
+                Text("Rings turn red at your warning level. Reset notifications are sent only for limits you've pushed past your warning level.")
+                    .settingsFootnote()
             }
 
             Section {
@@ -261,16 +264,52 @@ private struct NotificationsTab: View {
                     Toggle("Needs permission", isOn: $alertPermission)
                     Toggle("Waiting for my reply", isOn: $alertReply)
                     Toggle("Finished", isOn: $alertFinished)
+                    Toggle("Include sessions in the Claude app", isOn: $alertClaudeApp)
                 }
                 .padding(.leading, 18)
                 .disabled(!sessionAlerts)
             } header: {
                 Text("Claude Code")
+            } footer: {
+                Text("Sent after a few seconds, so you aren't pinged for something you answer right away. The Claude app already notifies you about its own sessions, so those are skipped unless you include them.")
+                    .settingsFootnote()
+            }
+
+            Section {
+                NotificationPermissionRow()
             }
         }
         .formStyle(.grouped)
-        .frame(height: 400)
+        .frame(height: 570)
         .animation(.smooth, value: sessionAlerts)
+    }
+}
+
+/// Whether macOS lets the app show notifications, with a test button.
+private struct NotificationPermissionRow: View {
+    private var notifier: Notifier { Notifier.shared }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            if DesignPreview.isEnabled || notifier.permission == .allowed {
+                Label("Notifications are allowed", systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                Spacer()
+                Button("Send Test") { notifier.sendTest() }
+            } else if notifier.permission == .denied {
+                Label("Notifications are turned off for this app", systemImage: "bell.slash.fill")
+                    .foregroundStyle(.orange)
+                Spacer()
+                Button("Open System Settings…") { notifier.openSystemSettings() }
+            } else {
+                Label("Notifications haven't been set up yet", systemImage: "bell")
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Allow…") { Task { await notifier.requestPermissionIfNeeded() } }
+            }
+        }
+        .font(.callout)
+        .task { await notifier.requestPermissionIfNeeded() }
     }
 }
 

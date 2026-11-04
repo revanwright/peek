@@ -21,6 +21,16 @@ final class ClaudeCodeStore {
         let since: Date
         let entrypoint: String?
 
+        /// The app the session runs in, for display ("VS Code", ...). nil if unknown.
+        var clientName: String? {
+            switch entrypoint {
+            case "claude-vscode": "VS Code"
+            case "claude-desktop": "the Claude app"
+            case "cli": "Terminal"
+            default: nil
+            }
+        }
+
         var project: String {
             let folder = URL(fileURLWithPath: cwd).standardizedFileURL
             if folder == FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL { return "Home" }
@@ -39,10 +49,16 @@ final class ClaudeCodeStore {
 
     private let folder = AppPaths.supportDirectory.appending(path: "sessions", directoryHint: .isDirectory)
     private var watcher: DispatchSourceFileSystemObject?
+    /// Notifications only fire for changes seen after the app starts, not for old state.
+    private var hasLoadedOnce = false
     private var sweepTask: Task<Void, Never>?
 
     init() {
         guard !DesignPreview.isEnabled else { return }
+        Notifier.shared.openSession = { [weak self] id in
+            guard let self, let session = sessions.first(where: { $0.id == id }) else { return }
+            open(session)
+        }
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         watchFolder()
         reload()
@@ -91,7 +107,16 @@ final class ClaudeCodeStore {
             found.append(Session(id: id, cwd: cwd, status: status, since: since, entrypoint: record["entrypoint"] as? String))
         }
         found.sort { $0.since > $1.since }
-        if found != sessions { sessions = found }
+        guard found != sessions else { return }
+
+        if hasLoadedOnce {
+            let previous = Dictionary(uniqueKeysWithValues: sessions.map { ($0.id, $0.status) })
+            for session in found where previous[session.id] != session.status {
+                Notifier.shared.sessionChanged(session)
+            }
+        }
+        hasLoadedOnce = true
+        sessions = found
     }
 
     /// A session is gone when its Claude Code process has exited, or (if we never
