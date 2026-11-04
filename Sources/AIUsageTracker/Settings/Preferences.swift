@@ -9,7 +9,6 @@ enum PrefKey {
 
     static let trackClaudeLimit = "source.claudeLimit"
     static let trackClaudeCode = "source.claudeCode"
-    static let trackCowork = "source.cowork"
     static func trackApp(_ bundleID: String) -> String { "source.app.\(bundleID)" }
 
     static let warnEnabled = "alert.warnEnabled"

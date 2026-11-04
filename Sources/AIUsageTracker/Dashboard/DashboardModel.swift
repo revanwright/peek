@@ -73,7 +73,6 @@ extension DashboardModel {
                 CodeSession(id: "2", project: "ai-usage-tracker", status: .working, since: now.addingTimeInterval(-180)),
                 CodeSession(id: "3", project: "Campus Tag", status: .waitingForReply, since: now.addingTimeInterval(-6 * 60)),
                 CodeSession(id: "4", project: "meeting-scribe", status: .finished, since: now.addingTimeInterval(-14 * 60)),
-                CodeSession(id: "5", project: "Weekly research digest", status: .working, since: now.addingTimeInterval(-90), client: "Cowork"),
             ],
             apps: [
                 AppTime(bundleID: "com.lencx.chatgpt", name: "ChatGPT", icon: appIcon("/Applications/ChatGPT.app"), seconds: 72 * 60),
@@ -118,11 +117,7 @@ extension DashboardModel {
     static func live(usage: UsageStore, claudeCode: ClaudeCodeStore, appTime: AppTimeTracker) -> DashboardModel {
         DashboardModel(
             claude: claudeState(usage),
-            sessions: (claudeCode.isEnabled || claudeCode.isCoworkEnabled)
-                ? claudeCode.sessions
-                    .filter { $0.entrypoint == "local-agent" ? claudeCode.isCoworkEnabled : claudeCode.isEnabled }
-                    .map(CodeSession.init)
-                : nil,
+            sessions: claudeCode.isEnabled ? claudeCode.sessions.map(CodeSession.init) : nil,
             claudeCodeConnected: claudeCode.hookStatus == .installed || claudeCode.hookStatus == .unknown,
             apps: appTimes(appTime),
             updatedAt: usage.snapshot?.fetchedAt
