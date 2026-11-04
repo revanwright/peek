@@ -19,7 +19,7 @@ SDK="/Library/Developer/CommandLineTools/SDKs/MacOSX26.sdk"
 
 mkdir -p build
 SOURCES=()
-while IFS= read -r -d '' file; do SOURCES+=("$file"); done < <(find Sources -name '*.swift' -print0)
+while IFS= read -r -d '' file; do SOURCES+=("$file"); done < <(find Sources/AIUsageTracker -name '*.swift' -print0)
 
 swiftc \
     -parse-as-library \
@@ -30,9 +30,19 @@ swiftc \
     -o build/AIUsageTracker \
     "${SOURCES[@]}"
 
+# The small helper Claude Code runs for each hook event (Foundation only, starts fast).
+swiftc \
+    -swift-version 6 \
+    -target arm64-apple-macosx15.0 \
+    -sdk "$SDK" \
+    -O \
+    -o build/ai-usage-hook \
+    Sources/Hook/main.swift
+
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Helpers" "$APP/Contents/Resources"
 mv build/AIUsageTracker "$APP/Contents/MacOS/AIUsageTracker"
+mv build/ai-usage-hook "$APP/Contents/Helpers/ai-usage-hook"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 
 if security find-identity -p codesigning 2>/dev/null | grep -q "\"$CERT_NAME\""; then
@@ -40,6 +50,7 @@ if security find-identity -p codesigning 2>/dev/null | grep -q "\"$CERT_NAME\"";
 else
     IDENTITY="-"
 fi
+codesign --force --sign "$IDENTITY" --identifier com.evanwright.AIUsageTracker.hook "$APP/Contents/Helpers/ai-usage-hook"
 codesign --force --sign "$IDENTITY" --identifier com.evanwright.AIUsageTracker "$APP"
 
 echo "Built: $APP (signed with: ${IDENTITY/-/ad hoc})"

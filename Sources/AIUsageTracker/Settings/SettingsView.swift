@@ -3,6 +3,7 @@ import SwiftUI
 /// The Settings window (⌘, or the gear in the dropdown).
 struct SettingsView: View {
     let account: AccountInfo
+    let hooks: HookControls
     /// Remembers the last tab you looked at, like most Mac apps.
     @AppStorage(PrefKey.settingsTab) private var selectedTab = SettingsTab.general.rawValue
 
@@ -11,7 +12,7 @@ struct SettingsView: View {
             GeneralTab()
                 .tabItem { Label("General", systemImage: "gearshape") }
                 .tag(SettingsTab.general.rawValue)
-            SourcesTab()
+            SourcesTab(hooks: hooks)
                 .tabItem { Label("Sources", systemImage: "square.stack.3d.up") }
                 .tag(SettingsTab.sources.rawValue)
             NotificationsTab()
@@ -27,6 +28,13 @@ struct SettingsView: View {
 
 enum SettingsTab: String, CaseIterable {
     case general, sources, notifications, account
+}
+
+/// Connects the Sources tab to the Claude Code hook installer.
+struct HookControls {
+    var status: ClaudeCodeStore.HookStatus
+    var install: () -> Void
+    var remove: () -> Void
 }
 
 /// What the Account tab needs to know about the claude.ai sign-in.
@@ -75,8 +83,10 @@ private struct GeneralTab: View {
 // MARK: - Sources
 
 private struct SourcesTab: View {
+    let hooks: HookControls
     @AppStorage(PrefKey.trackClaudeLimit) private var trackLimit = true
     @AppStorage(PrefKey.trackClaudeCode) private var trackCode = true
+    @State private var confirmingInstall = false
 
     var body: some View {
         Form {
@@ -93,6 +103,7 @@ private struct SourcesTab: View {
                     subtitle: "Live status from Claude Code hooks",
                     isOn: $trackCode
                 )
+                HookStatusRow(hooks: hooks, confirmingInstall: $confirmingInstall)
             }
 
             Section {
@@ -109,7 +120,55 @@ private struct SourcesTab: View {
             }
         }
         .formStyle(.grouped)
-        .frame(height: 380)
+        .frame(height: 420)
+        .alert("Connect to Claude Code?", isPresented: $confirmingInstall) {
+            Button("Connect", action: hooks.install)
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This adds AI Usage Tracker's hooks to ~/.claude/settings.json so Claude Code can report each session's status. A backup of the file is saved first, and your other settings aren't changed.")
+        }
+    }
+}
+
+/// Shows whether Claude Code is set up to report to the app, with a button to fix it.
+private struct HookStatusRow: View {
+    let hooks: HookControls
+    @Binding var confirmingInstall: Bool
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Circle().fill(dotColor).frame(width: 7, height: 7)
+            Text(label).font(.callout).foregroundStyle(.secondary)
+            Spacer()
+            switch hooks.status {
+            case .installed:
+                Button("Disconnect", action: hooks.remove).controlSize(.small)
+            case .notInstalled, .outdated, .failed:
+                Button(hooks.status == .outdated ? "Update…" : "Connect…") { confirmingInstall = true }
+                    .controlSize(.small)
+            case .unknown:
+                ProgressView().controlSize(.small)
+            }
+        }
+        .padding(.leading, 34)
+    }
+
+    private var label: String {
+        switch hooks.status {
+        case .installed: "Connected to Claude Code"
+        case .notInstalled: "Not connected"
+        case .outdated: "Connected to an older copy of the app"
+        case .failed: "Couldn't check the connection"
+        case .unknown: "Checking…"
+        }
+    }
+
+    private var dotColor: Color {
+        switch hooks.status {
+        case .installed: .green
+        case .outdated, .failed: .orange
+        case .notInstalled, .unknown: .secondary
+        }
     }
 }
 

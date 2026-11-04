@@ -4,6 +4,7 @@ import SwiftUI
 struct AIUsageTrackerApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var usage = UsageStore()
+    @State private var claudeCode = ClaudeCodeStore()
 
     // Read here so the menu bar redraws as soon as these settings change.
     @AppStorage(PrefKey.menuBarStyle) private var menuBarStyle = MenuBarStyle.ringOnly.rawValue
@@ -16,10 +17,18 @@ struct AIUsageTrackerApp: App {
                 UsagePanel(model: .sample)
             } else {
                 UsagePanel(
-                    model: .live(usage: usage),
+                    model: .live(usage: usage, claudeCode: claudeCode),
                     onSignIn: { usage.signIn() },
                     onRetry: { Task { await usage.refresh(force: true) } },
-                    onOpen: { Task { await usage.refresh() } }
+                    onOpen: {
+                        claudeCode.reload()
+                        Task { await usage.refresh() }
+                    },
+                    onOpenSession: { session in
+                        if let match = claudeCode.sessions.first(where: { $0.id == session.id }) {
+                            claudeCode.open(match)
+                        }
+                    }
                 )
             }
         } label: {
@@ -28,7 +37,7 @@ struct AIUsageTrackerApp: App {
         .menuBarExtraStyle(.window)
 
         Settings {
-            SettingsView(account: accountInfo)
+            SettingsView(account: accountInfo, hooks: hookControls)
         }
     }
 
@@ -45,6 +54,17 @@ struct AIUsageTrackerApp: App {
             percent: percent,
             showsPercent: MenuBarStyle(rawValue: menuBarStyle) == .ringAndPercent
         ))
+    }
+
+    private var hookControls: HookControls {
+        if DesignPreview.isEnabled {
+            return HookControls(status: .installed, install: {}, remove: {})
+        }
+        return HookControls(
+            status: claudeCode.hookStatus,
+            install: { Task { await claudeCode.installHooks() } },
+            remove: { Task { await claudeCode.removeHooks() } }
+        )
     }
 
     private var accountInfo: AccountInfo {

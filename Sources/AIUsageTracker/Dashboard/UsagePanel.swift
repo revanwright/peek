@@ -7,6 +7,7 @@ struct UsagePanel: View {
     var onRetry: () -> Void = {}
     /// Called each time the dropdown opens (used to refresh).
     var onOpen: () -> Void = {}
+    var onOpenSession: (DashboardModel.CodeSession) -> Void = { _ in }
 
     @Environment(\.openSettings) private var openSettings
 
@@ -16,7 +17,7 @@ struct UsagePanel: View {
 
             claudeSection
 
-            if let sessions = model.sessions { SessionsSection(sessions: sessions) }
+            if let sessions = model.sessions { SessionsSection(sessions: sessions, onOpen: onOpenSession) }
             if let apps = model.apps { AppsSection(apps: apps) }
 
             footer
@@ -209,6 +210,7 @@ extension MessageCard where Actions == EmptyView {
 
 private struct SessionsSection: View {
     let sessions: [DashboardModel.CodeSession]
+    let onOpen: (DashboardModel.CodeSession) -> Void
 
     var body: some View {
         let sorted = sessions.sorted { ($0.status.sortOrder, $1.since) < ($1.status.sortOrder, $0.since) }
@@ -225,7 +227,9 @@ private struct SessionsSection: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                 } else {
-                    ForEach(sorted) { SessionRow(session: $0) }
+                    ForEach(sorted) { session in
+                        SessionRow(session: session) { onOpen(session) }
+                    }
                 }
             }
             .padding(4)
@@ -236,6 +240,7 @@ private struct SessionsSection: View {
 
 private struct SessionRow: View {
     let session: DashboardModel.CodeSession
+    let onOpen: () -> Void
     @State private var isHovering = false
 
     var body: some View {
@@ -248,9 +253,15 @@ private struct SessionRow: View {
                 Text(session.project)
                     .font(.system(size: 13, weight: .medium))
                     .lineLimit(1)
-                Text(status.title)
-                    .font(.caption)
-                    .foregroundStyle(needsYou ? AnyShapeStyle(status.tint) : AnyShapeStyle(.secondary))
+                HStack(spacing: 4) {
+                    Text(status.title)
+                        .foregroundStyle(needsYou ? AnyShapeStyle(status.tint) : AnyShapeStyle(.secondary))
+                    if let client = session.client {
+                        Text("· \(client)").foregroundStyle(.tertiary)
+                    }
+                }
+                .font(.caption)
+                .lineLimit(1)
             }
             Spacer(minLength: 8)
             TimelineView(.everyMinute) { _ in
@@ -270,6 +281,9 @@ private struct SessionRow: View {
         .onHover { hovering in
             withAnimation(.easeOut(duration: 0.12)) { isHovering = hovering }
         }
+        .onTapGesture(perform: onOpen)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityLabel("\(session.project), \(status.title)")
     }
 
     private func shortElapsed(since date: Date) -> String {

@@ -52,6 +52,7 @@ enum UsageLevel {
 extension DashboardModel.CodeSession.Status {
     var title: String {
         switch self {
+        case .idle: "Ready"
         case .working: "Working"
         case .needsPermission: "Needs permission"
         case .waitingForReply: "Waiting for your reply"
@@ -61,6 +62,7 @@ extension DashboardModel.CodeSession.Status {
 
     var symbol: String {
         switch self {
+        case .idle: "ellipsis"
         case .working: "arrow.triangle.2.circlepath"
         case .needsPermission: "hand.raised.fill"
         case .waitingForReply: "bubble.left.fill"
@@ -70,6 +72,7 @@ extension DashboardModel.CodeSession.Status {
 
     var tint: Color {
         switch self {
+        case .idle: .gray
         case .working: .blue
         case .needsPermission: .orange
         case .waitingForReply: .purple
@@ -84,6 +87,7 @@ extension DashboardModel.CodeSession.Status {
         case .waitingForReply: 1
         case .working: 2
         case .finished: 3
+        case .idle: 4
         }
     }
 }

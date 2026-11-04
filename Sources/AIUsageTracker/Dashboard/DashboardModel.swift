@@ -35,13 +35,15 @@ struct DashboardModel {
 
     struct CodeSession: Identifiable {
         enum Status {
-            case working, needsPermission, waitingForReply, finished
+            case idle, working, needsPermission, waitingForReply, finished
         }
 
         var id: String
         var project: String
         var status: Status
         var since: Date
+        /// Which app the session runs in, e.g. "VS Code". nil if unknown.
+        var client: String? = nil
     }
 
     struct AppTime: Identifiable {
@@ -88,11 +90,11 @@ extension DashboardModel {
 
 extension DashboardModel {
     @MainActor
-    static func live(usage: UsageStore) -> DashboardModel {
+    static func live(usage: UsageStore, claudeCode: ClaudeCodeStore) -> DashboardModel {
         DashboardModel(
             claude: claudeState(usage),
-            sessions: nil,  // Claude Code sessions: next build step
-            apps: nil,      // AI app time: later build step
+            sessions: claudeCode.isEnabled ? claudeCode.sessions.map(CodeSession.init) : nil,
+            apps: nil,  // AI app time: later build step
             updatedAt: usage.snapshot?.fetchedAt
         )
     }
@@ -115,5 +117,24 @@ extension DashboardModel {
         case .failed(let message): return .unavailable(message)
         case .loading, .ready: return .loading
         }
+    }
+}
+
+extension DashboardModel.CodeSession {
+    init(_ session: ClaudeCodeStore.Session) {
+        let status: Status = switch session.status {
+        case .idle: .idle
+        case .working: .working
+        case .needsPermission: .needsPermission
+        case .waitingForReply: .waitingForReply
+        case .finished: .finished
+        }
+        let client: String? = switch session.entrypoint {
+        case "claude-vscode": "VS Code"
+        case "claude-desktop": "Claude app"
+        case "cli": "Terminal"
+        default: nil
+        }
+        self.init(id: session.id, project: session.project, status: status, since: session.since, client: client)
     }
 }

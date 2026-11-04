@@ -2,12 +2,13 @@
 
 A native macOS menu bar app that shows how much of my Claude plan limit I've used, built with SwiftUI.
 
-**Status:** in progress. The Claude limit reading and the dropdown are working; Claude Code session status, notifications, and AI-app time tracking are next.
+**Status:** in progress. The Claude limit reading, the dropdown, and live Claude Code session status are working; notifications and AI-app time tracking are next.
 
 ## What it does
 
 - **Menu bar ring** that fills up with your current 5-hour Claude usage and shifts from green to orange to red.
 - **Dropdown** with rings for the current session and the weekly limit, plus reset times.
+- **Claude Code sessions**: each open session's project and status (working, needs permission, waiting for your reply, finished), reported by Claude Code hooks. Works in the terminal, the VS Code extension, and the Claude desktop app.
 - **Settings window** with standard Mac tabs: General, Sources, Notifications, Account.
 - Full light and dark mode support, using system fonts and materials.
 
@@ -20,6 +21,12 @@ Anthropic doesn't offer an official API for plan usage, so the app reads the sam
 3. Every few minutes, a hidden copy of Safari's web engine asks claude.ai for your usage, so requests look like ordinary browser traffic.
 
 Because this relies on an undocumented endpoint, it can break if claude.ai changes. The app shows your last reading with a warning if an update fails.
+
+## How Claude Code status works
+
+Claude Code can run a command on events like "a prompt was sent" or "Claude stopped" ([hooks](https://code.claude.com/docs/en/hooks)). The app ships a tiny helper, `ai-usage-hook`, that records each session's latest status in `~/Library/Application Support/AIUsageTracker/sessions/`. The helper prints nothing (hook output can reach Claude's conversation) and always exits immediately.
+
+Settings → Sources → **Connect** adds the hooks to `~/.claude/settings.json` (backing the file up first); **Disconnect** removes only the app's own entries.
 
 ## Building
 
@@ -42,8 +49,10 @@ Notes:
 Sources/AIUsageTracker/
   App/          App entry point and design-preview mode
   ClaudeLimit/  claude.ai sign-in, usage reading, and refresh schedule
+  ClaudeCode/   Live session list from the hook helper, hook install/remove
   Dashboard/    Menu bar icon and dropdown
   Design/       Shared colors, spacing, and the ring gauge
   Settings/     Settings window and saved preferences
   Support/      Keychain, logging, login item, helpers
+Sources/Hook/   ai-usage-hook, the helper Claude Code runs for each hook event
 ```
