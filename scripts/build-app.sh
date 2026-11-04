@@ -44,6 +44,7 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Helpers" "$APP/Contents/Resources"
 mv build/AIUsageTracker "$APP/Contents/MacOS/AIUsageTracker"
 mv build/ai-usage-hook "$APP/Contents/Helpers/ai-usage-hook"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 
 if security find-identity -p codesigning 2>/dev/null | grep -q "\"$CERT_NAME\""; then
     IDENTITY="$CERT_NAME"

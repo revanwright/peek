@@ -36,6 +36,7 @@ No Xcode required, only Apple's free Command Line Tools.
 ```bash
 ./scripts/run.sh                 # build, install to ~/Applications, and launch
 ./scripts/snapshot-design.sh     # save light/dark screenshots with sample data to build/design-shots
+./scripts/make-icon.sh           # redraw the app icon (design lives in scripts/make-icon.swift)
 ```
 
 Notes:
