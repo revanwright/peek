@@ -39,6 +39,7 @@ final class ChatStore {
     private var lastCheck = Date.distantPast
     private var checkSoon = false
     private var lastRecentCount = -1
+    private var lastDebug: [String: String] = [:]
     private var loop: Task<Void, Never>?
 
     init(usage: UsageStore) {
@@ -89,6 +90,10 @@ final class ChatStore {
         let now = Date()
         var next: [Chat] = []
         for chat in activity {
+            if lastDebug[chat.id] != chat.debug {
+                lastDebug[chat.id] = chat.debug
+                Log.write("chats: \(chat.id.prefix(8)) \(chat.debug)")
+            }
             let sent = chat.lastMessageAt ?? chat.updatedAt
             if chat.isReplying, now.timeIntervalSince(sent) < longestReply {
                 let started = replyStarted[chat.id] ?? sent

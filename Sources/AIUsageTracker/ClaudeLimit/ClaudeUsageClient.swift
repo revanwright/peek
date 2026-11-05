@@ -71,6 +71,8 @@ final class ClaudeUsageClient {
         let isReplying: Bool
         /// When the newest message in the chat was sent.
         let lastMessageAt: Date?
+        /// What the check saw (message counts, who sent the newest, IDs). Never message text.
+        let debug: String
     }
 
     /// Checks your most recent chats for one that's still being answered.
@@ -94,24 +96,36 @@ final class ClaudeUsageClient {
         const recent = ((await list.json()).data || [])
             .filter(c => Date.now() - Date.parse(c.updated_at) <= recentMs);
         const chats = await Promise.all(recent.map(async c => {
-            const newestID = c.current_leaf_message_uuid;
-            let newest = newestID && known[newestID];
+            // Re-read the chat whenever its "last updated" time changes.
+            const key = `${c.uuid}@${c.updated_at}`;
+            let newest = known[key];
             if (!newest) {
                 const r = await fetch(`${base}/${c.uuid}?tree=True&rendering_mode=messages&consistency=strong`, opts);
                 if (!r.ok) return null;
                 const t = await r.json();
-                const msgs = t.chat_messages || [];
-                const id = newestID || t.current_leaf_message_uuid;
-                const m = msgs.find(x => x.uuid === id) || msgs[msgs.length - 1];
-                newest = m ? { sender: m.sender, at: Date.parse(m.created_at) / 1000 } : { sender: 'none', at: 0 };
-                if (id) known[id] = newest;
+                const msgs = (t.chat_messages || []).slice().sort((a, b) => a.index - b.index);
+                const m = msgs[msgs.length - 1];
+                const at = m ? Date.parse(m.created_at) / 1000 : 0;
+                const updated = Date.parse(c.updated_at) / 1000;
+                // Two signs Claude is still replying: your message is the newest one, or the chat
+                // changed after its newest saved message (the reply hasn't been saved yet).
+                const yours = m ? m.sender === 'human' : false;
+                const gap = updated - at > 3;
+                newest = {
+                    yours, gap, at,
+                    debug: `msgs=${msgs.length} newest=${m ? m.sender : 'none'}#${m ? m.index : -1} ` +
+                        `listLeaf=${(c.current_leaf_message_uuid || '').slice(0, 8)} treeLeaf=${(t.current_leaf_message_uuid || '').slice(0, 8)} ` +
+                        `newestID=${m ? (m.uuid || '').slice(0, 8) : ''} updatedMinusNewest=${Math.round(updated - at)}s`
+                };
+                known[key] = newest;
             }
-            let replying = newest.sender === 'human';
+            let replying = newest.yours || newest.gap;
             if (replying) {
                 const s = await fetch(`${base}/${c.uuid}/completion_status?poll=false`, opts);
                 if (s.ok && (await s.json()).is_error === true) replying = false;
             }
-            return { id: c.uuid, name: c.name || '', updatedAt: Date.parse(c.updated_at) / 1000, replying, sentAt: newest.at };
+            return { id: c.uuid, name: c.name || '', updatedAt: Date.parse(c.updated_at) / 1000, replying,
+                     sentAt: newest.at, debug: `${newest.debug} replying=${replying}` };
         }));
         return { status: 200, chats: chats.filter(Boolean) };
         """
@@ -137,7 +151,8 @@ final class ClaudeUsageClient {
                 name: row["name"] as? String ?? "",
                 updatedAt: Date(timeIntervalSince1970: updated),
                 isReplying: (row["replying"] as? NSNumber)?.boolValue ?? false,
-                lastMessageAt: sent > 0 ? Date(timeIntervalSince1970: sent) : nil
+                lastMessageAt: sent > 0 ? Date(timeIntervalSince1970: sent) : nil,
+                debug: row["debug"] as? String ?? ""
             )
         }
     }
