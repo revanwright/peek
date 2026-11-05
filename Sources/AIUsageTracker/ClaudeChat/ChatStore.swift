@@ -73,7 +73,11 @@ final class ChatStore {
             if !chats.isEmpty { chats = [] }
             return
         }
-        guard let activity = await usage.chatActivity(recentWithin: showFor) else { return }
+        guard let activity = await usage.chatActivity(recentWithin: showFor) else {
+            // Not ready yet (still reading the limit) or claude.ai was unreachable: try again in 15 seconds.
+            lastCheck = Date().addingTimeInterval(15 - nextDelay())
+            return
+        }
         lastCheck = .now
         if activity.count != lastRecentCount {
             lastRecentCount = activity.count
