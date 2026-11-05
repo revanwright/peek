@@ -8,6 +8,7 @@ struct UsagePanel: View {
     /// Called each time the dropdown opens (used to refresh).
     var onOpen: () -> Void = {}
     var onOpenSession: (DashboardModel.CodeSession) -> Void = { _ in }
+    var onOpenChat: (DashboardModel.CodeSession) -> Void = { _ in }
 
     @Environment(\.openSettings) private var openSettings
 
@@ -24,6 +25,9 @@ struct UsagePanel: View {
                     onOpen: onOpenSession,
                     onConnect: { showSettings(.sources) }
                 )
+            }
+            if let chats = model.chats, !chats.isEmpty {
+                ChatSection(chats: chats, onOpen: onOpenChat)
             }
             if let apps = model.apps { AppsSection(apps: apps) }
 
@@ -343,6 +347,29 @@ private struct StatusBadge: View {
                 .symbolEffect(.rotate, options: .repeat(.continuous))
         } else {
             Image(systemName: status.symbol)
+        }
+    }
+}
+
+// MARK: - Claude chat
+
+/// Recent chats: "Working" while Claude writes a reply, then "Finished" for a few minutes.
+private struct ChatSection: View {
+    let chats: [DashboardModel.CodeSession]
+    let onOpen: (DashboardModel.CodeSession) -> Void
+
+    var body: some View {
+        let sorted = chats.sorted { ($0.status.sortOrder, $1.since) < ($1.status.sortOrder, $0.since) }
+        let replying = chats.filter { $0.status == .working }.count
+        VStack(alignment: .leading, spacing: 6) {
+            SectionHeader(title: "Claude Chat", detail: replying > 0 ? "\(replying) replying" : nil)
+            VStack(spacing: 0) {
+                ForEach(sorted) { chat in
+                    SessionRow(session: chat) { onOpen(chat) }
+                }
+            }
+            .padding(4)
+            .card()
         }
     }
 }

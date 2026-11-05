@@ -86,6 +86,19 @@ final class UsageStore {
         }
     }
 
+    /// Recent chats and whether each is still being answered. nil when not signed in
+    /// or claude.ai couldn't be reached (the chat section then just stays as it was).
+    func chatActivity(recentWithin: TimeInterval) async -> [ClaudeUsageClient.ChatActivity]? {
+        // Wait until the limit reader has loaded claude.ai, so the two never load it at once.
+        guard phase == .ready || snapshot != nil, !isRefreshing else { return nil }
+        do {
+            return try await client.fetchChatActivity(recentWithin: recentWithin)
+        } catch {
+            Log.write("chats: couldn't check (\(error.localizedDescription))")
+            return nil
+        }
+    }
+
     func signIn() {
         if let signInWindow {
             signInWindow.show()

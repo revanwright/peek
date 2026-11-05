@@ -114,6 +114,7 @@ private struct SourcesTab: View {
     private var trackedApps: TrackedApps { TrackedApps.shared }
     @AppStorage(PrefKey.trackClaudeLimit) private var trackLimit = true
     @AppStorage(PrefKey.trackClaudeCode) private var trackCode = true
+    @AppStorage(PrefKey.trackClaudeChat) private var trackChat = true
     @State private var confirmingInstall = false
 
     var body: some View {
@@ -132,6 +133,12 @@ private struct SourcesTab: View {
                     isOn: $trackCode
                 )
                 HookStatusRow(hooks: hooks, confirmingInstall: $confirmingInstall)
+                SourceRow(
+                    icon: .symbol("bubble.left.and.bubble.right.fill", .teal),
+                    title: "Claude chat",
+                    subtitle: "Shows when a chat is replying, from claude.ai",
+                    isOn: $trackChat
+                )
             }
 
             Section {
@@ -276,6 +283,7 @@ private struct NotificationsTab: View {
     @AppStorage(PrefKey.sessionAlertReply) private var alertReply = true
     @AppStorage(PrefKey.sessionAlertFinished) private var alertFinished = false
     @AppStorage(PrefKey.sessionAlertClaudeApp) private var alertClaudeApp = false
+    @AppStorage(PrefKey.chatAlertFinished) private var alertChatFinished = false
 
     var body: some View {
         Form {
@@ -316,11 +324,20 @@ private struct NotificationsTab: View {
             }
 
             Section {
+                Toggle("Notify me when a chat reply finishes", isOn: $alertChatFinished)
+            } header: {
+                Text("Claude chat")
+            } footer: {
+                Text("Handy for long replies. Off by default because the Claude app can notify you itself.")
+                    .settingsFootnote()
+            }
+
+            Section {
                 NotificationPermissionRow()
             }
         }
         .formStyle(.grouped)
-        .frame(height: 570)
+        .frame(height: 680)
         .animation(.smooth, value: sessionAlerts)
     }
 }

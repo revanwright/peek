@@ -10,6 +10,8 @@ struct DashboardModel {
     /// False when Claude Code isn't set up to report to the app yet.
     var claudeCodeConnected = true
     var apps: [AppTime]?
+    /// Chats touched in the last few minutes. nil or empty hides the section.
+    var chats: [CodeSession]? = nil
     var updatedAt: Date?
     /// True when this is made-up preview data. The panel shows a "Sample data" badge.
     var isSample = false
@@ -78,6 +80,10 @@ extension DashboardModel {
                 AppTime(bundleID: "com.lencx.chatgpt", name: "ChatGPT", icon: appIcon("/Applications/ChatGPT.app"), seconds: 72 * 60),
                 AppTime(bundleID: "com.meta.endo", name: "Muse", icon: appIcon("/Applications/Muse.app"), seconds: 24 * 60),
             ],
+            chats: [
+                CodeSession(id: "c1", project: "Weekend trip ideas", status: .working, since: now.addingTimeInterval(-20)),
+                CodeSession(id: "c2", project: "Resume bullet rewrite", status: .finished, since: now.addingTimeInterval(-4 * 60)),
+            ],
             updatedAt: now.addingTimeInterval(-60),
             isSample: true
         )
@@ -114,12 +120,13 @@ extension DashboardModel {
 
 extension DashboardModel {
     @MainActor
-    static func live(usage: UsageStore, claudeCode: ClaudeCodeStore, appTime: AppTimeTracker) -> DashboardModel {
+    static func live(usage: UsageStore, claudeCode: ClaudeCodeStore, appTime: AppTimeTracker, chat: ChatStore) -> DashboardModel {
         DashboardModel(
             claude: claudeState(usage),
             sessions: claudeCode.isEnabled ? claudeCode.sessions.map(CodeSession.init) : nil,
             claudeCodeConnected: claudeCode.hookStatus == .installed || claudeCode.hookStatus == .unknown,
             apps: appTimes(appTime),
+            chats: chat.isEnabled ? chat.chats.map(CodeSession.init) : nil,
             updatedAt: usage.snapshot?.fetchedAt
         )
     }
@@ -174,5 +181,16 @@ extension DashboardModel.CodeSession {
         default: session.clientName
         }
         self.init(id: session.id, project: session.project, status: status, since: session.since, client: client)
+    }
+}
+
+extension DashboardModel.CodeSession {
+    init(_ chat: ChatStore.Chat) {
+        self.init(
+            id: chat.id,
+            project: chat.name.isEmpty ? "Untitled chat" : chat.name,
+            status: chat.isReplying ? .working : .finished,
+            since: chat.since
+        )
     }
 }

@@ -63,6 +63,62 @@ final class ClaudeUsageClient {
         }
     }
 
+    /// A chat touched recently, and whether Claude is still writing its reply.
+    struct ChatActivity: Sendable {
+        let id: String
+        let name: String
+        let updatedAt: Date
+        let isReplying: Bool
+    }
+
+    /// Checks your most recent chats for one that's still being answered.
+    ///
+    /// claude.ai's own web app asks the same question when you reload a page mid-reply:
+    /// `completion_status` answers `{"is_pending": true}` while Claude is still writing.
+    /// Only chats updated within `recentWithin` are checked, so this stays to a few small requests.
+    func fetchChatActivity(recentWithin: TimeInterval) async throws -> [ChatActivity] {
+        try await loadClaudeOrigin(force: false)
+        let orgID = try await resolveOrganization()
+        guard let webView else { throw FetchError.blocked }
+
+        let script = """
+        const opts = { credentials: 'include', headers: { 'accept': 'application/json' } };
+        const list = await fetch(`/api/organizations/${org}/chat_conversations_v2?limit=5&consistency=eventual`, opts);
+        if (!list.ok) return { status: list.status };
+        const recent = ((await list.json()).data || [])
+            .filter(c => Date.now() - Date.parse(c.updated_at) <= recentMs);
+        const chats = await Promise.all(recent.map(async c => {
+            const r = await fetch(`/api/organizations/${org}/chat_conversations/${c.uuid}/completion_status?poll=false`, opts);
+            const s = r.ok ? await r.json() : {};
+            return { id: c.uuid, name: c.name || '', updatedAt: Date.parse(c.updated_at) / 1000, replying: s.is_pending === true };
+        }));
+        return { status: 200, chats };
+        """
+        let result = try await webView.callAsyncJavaScript(
+            script,
+            arguments: ["org": orgID, "recentMs": recentWithin * 1000],
+            contentWorld: .defaultClient
+        )
+        guard let dict = result as? [String: Any], let status = (dict["status"] as? NSNumber)?.intValue else {
+            throw FetchError.unexpected(status: -1)
+        }
+        switch status {
+        case 200: break
+        case 401, 403: throw FetchError.signedOut
+        default: throw FetchError.unexpected(status: status)
+        }
+        let rows = dict["chats"] as? [[String: Any]] ?? []
+        return rows.compactMap { row in
+            guard let id = row["id"] as? String, let updated = (row["updatedAt"] as? NSNumber)?.doubleValue else { return nil }
+            return ChatActivity(
+                id: id,
+                name: row["name"] as? String ?? "",
+                updatedAt: Date(timeIntervalSince1970: updated),
+                isReplying: (row["replying"] as? NSNumber)?.boolValue ?? false
+            )
+        }
+    }
+
     /// Forget cached account details (after sign-out or a new sign-in).
     func reset() {
         organizationID = nil

@@ -5,7 +5,8 @@ import Observation
 /// Sends the app's notifications:
 ///   - a warning when Claude usage reaches your warning level (once per limit window),
 ///   - a ping when a limit you'd pushed close to the edge resets,
-///   - a nudge when a Claude Code session needs you.
+///   - a nudge when a Claude Code session needs you,
+///   - (optional) a ping when a chat reply finishes.
 @Observable
 @MainActor
 final class Notifier: NSObject {
@@ -133,6 +134,18 @@ final class Notifier: NSObject {
         }
     }
 
+    // MARK: - Claude chat
+
+    func chatFinished(id: String, name: String) {
+        guard Preferences.isOn(PrefKey.chatAlertFinished, default: false) else { return }
+        send(
+            id: "chat-\(id)-\(Int(Date().timeIntervalSince1970))",
+            title: "Claude replied",
+            body: name.isEmpty ? "Your chat has a new reply." : "“\(name)” has a new reply.",
+            userInfo: ["chatID": id]
+        )
+    }
+
     // MARK: - Sending
 
     func sendTest() {
@@ -165,7 +178,11 @@ extension Notifier: UNUserNotificationCenterDelegate {
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
     ) async {
-        guard let sessionID = response.notification.request.content.userInfo["sessionID"] as? String else { return }
+        let info = response.notification.request.content.userInfo
+        if let chatID = info["chatID"] as? String {
+            await MainActor.run { ChatStore.open(chatID: chatID) }
+        }
+        guard let sessionID = info["sessionID"] as? String else { return }
         await MainActor.run { self.openSession?(sessionID) }
     }
 }

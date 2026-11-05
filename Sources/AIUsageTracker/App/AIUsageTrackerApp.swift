@@ -3,14 +3,21 @@ import SwiftUI
 @main
 struct AIUsageTrackerApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @State private var usage = UsageStore()
+    @State private var usage: UsageStore
     @State private var claudeCode = ClaudeCodeStore()
     @State private var appTime = AppTimeTracker()
+    @State private var chat: ChatStore
 
     // Read here so the menu bar redraws as soon as these settings change.
     @AppStorage(PrefKey.menuBarStyle) private var menuBarStyle = MenuBarStyle.ringOnly.rawValue
     @AppStorage(PrefKey.warnAtPercent) private var warnAtPercent = 80.0
     @AppStorage(PrefKey.trackClaudeLimit) private var trackClaudeLimit = true
+
+    init() {
+        let usage = UsageStore()
+        _usage = State(initialValue: usage)
+        _chat = State(initialValue: ChatStore(usage: usage))
+    }
 
     var body: some Scene {
         MenuBarExtra {
@@ -18,18 +25,20 @@ struct AIUsageTrackerApp: App {
                 UsagePanel(model: .sample)
             } else {
                 UsagePanel(
-                    model: .live(usage: usage, claudeCode: claudeCode, appTime: appTime),
+                    model: .live(usage: usage, claudeCode: claudeCode, appTime: appTime, chat: chat),
                     onSignIn: { usage.signIn() },
                     onRetry: { Task { await usage.refresh(force: true) } },
                     onOpen: {
                         claudeCode.reload()
+                        chat.refreshSoon()
                         Task { await usage.refresh() }
                     },
                     onOpenSession: { session in
                         if let match = claudeCode.sessions.first(where: { $0.id == session.id }) {
                             claudeCode.open(match)
                         }
-                    }
+                    },
+                    onOpenChat: { chat in ChatStore.open(chatID: chat.id) }
                 )
             }
         } label: {

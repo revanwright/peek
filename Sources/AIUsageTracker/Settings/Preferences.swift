@@ -9,6 +9,7 @@ enum PrefKey {
 
     static let trackClaudeLimit = "source.claudeLimit"
     static let trackClaudeCode = "source.claudeCode"
+    static let trackClaudeChat = "source.claudeChat"
     static func trackApp(_ bundleID: String) -> String { "source.app.\(bundleID)" }
 
     static let warnEnabled = "alert.warnEnabled"
@@ -20,6 +21,8 @@ enum PrefKey {
     static let sessionAlertFinished = "alert.sessions.finished"
     /// The Claude app already notifies you about its own sessions, so these are off by default.
     static let sessionAlertClaudeApp = "alert.sessions.claudeApp"
+    /// Off by default for the same reason: the Claude app can notify you itself.
+    static let chatAlertFinished = "alert.chat.finished"
 }
 
 enum MenuBarStyle: String, CaseIterable, Identifiable {
