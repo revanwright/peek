@@ -48,6 +48,7 @@ struct AIUsageTrackerApp: App {
 
         Settings {
             SettingsView(account: accountInfo, hooks: hookControls)
+                .previewActiveControls()
         }
     }
 

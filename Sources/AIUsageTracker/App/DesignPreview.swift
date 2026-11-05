@@ -192,3 +192,15 @@ enum DesignPreview {
         try? output.representation(using: .png, properties: [:])?.write(to: url)
     }
 }
+
+extension View {
+    /// In design-preview snapshots, draw controls as if their window were active, so
+    /// sliders show the accent color instead of grey. No effect otherwise.
+    @ViewBuilder func previewActiveControls() -> some View {
+        if DesignPreview.isEnabled {
+            environment(\.controlActiveState, .key)
+        } else {
+            self
+        }
+    }
+}
