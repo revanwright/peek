@@ -79,9 +79,10 @@ final class ClaudeUsageClient {
     ///
     /// claude.ai saves Claude's reply only once it's finished, so while Claude is writing,
     /// the newest message in the chat is still yours. (Verified live: a reply that took two
-    /// minutes appeared in the chat at the moment it finished.) Each chat lists its newest
-    /// message's ID, so the full chat is downloaded only when that ID changes, about twice
-    /// per question. A reply that failed shows up through `completion_status`'s `is_error`.
+    /// minutes appeared in the chat at the moment it finished.) The chat is downloaded only
+    /// when its "last updated" time changes, about twice per question. (Its "newest message"
+    /// ID can't be used for this: it keeps pointing at Claude's previous reply until the new
+    /// one is saved.) A reply that failed shows up through `completion_status`'s `is_error`.
     func fetchChatActivity(recentWithin: TimeInterval) async throws -> [ChatActivity] {
         try await loadClaudeOrigin(force: false)
         let orgID = try await resolveOrganization()
@@ -107,19 +108,18 @@ final class ClaudeUsageClient {
                 const m = msgs[msgs.length - 1];
                 const at = m ? Date.parse(m.created_at) / 1000 : 0;
                 const updated = Date.parse(c.updated_at) / 1000;
-                // Two signs Claude is still replying: your message is the newest one, or the chat
-                // changed after its newest saved message (the reply hasn't been saved yet).
+                // Claude's reply is saved only when it's finished, so while Claude is writing,
+                // your message is the newest one.
                 const yours = m ? m.sender === 'human' : false;
-                const gap = updated - at > 3;
                 newest = {
-                    yours, gap, at,
+                    yours, at,
                     debug: `msgs=${msgs.length} newest=${m ? m.sender : 'none'}#${m ? m.index : -1} ` +
                         `listLeaf=${(c.current_leaf_message_uuid || '').slice(0, 8)} treeLeaf=${(t.current_leaf_message_uuid || '').slice(0, 8)} ` +
                         `newestID=${m ? (m.uuid || '').slice(0, 8) : ''} updatedMinusNewest=${Math.round(updated - at)}s`
                 };
                 known[key] = newest;
             }
-            let replying = newest.yours || newest.gap;
+            let replying = newest.yours;
             if (replying) {
                 const s = await fetch(`${base}/${c.uuid}/completion_status?poll=false`, opts);
                 if (s.ok && (await s.json()).is_error === true) replying = false;
