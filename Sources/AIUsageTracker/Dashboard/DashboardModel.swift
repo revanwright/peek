@@ -71,10 +71,10 @@ extension DashboardModel {
                 weekly: .init(percent: 52, resetsAt: now.addingTimeInterval(3.8 * 24 * 3600))
             ), warning: nil),
             sessions: [
-                CodeSession(id: "1", project: "Harvey", status: .needsPermission, since: now.addingTimeInterval(-40)),
-                CodeSession(id: "2", project: "ai-usage-tracker", status: .working, since: now.addingTimeInterval(-180)),
-                CodeSession(id: "3", project: "Campus Tag", status: .waitingForReply, since: now.addingTimeInterval(-6 * 60)),
-                CodeSession(id: "4", project: "meeting-scribe", status: .finished, since: now.addingTimeInterval(-14 * 60)),
+                CodeSession(id: "1", project: "Harvey", status: .needsPermission, since: now.addingTimeInterval(-40), client: "VS Code"),
+                CodeSession(id: "2", project: "Menu bar polish", status: .working, since: now.addingTimeInterval(-180), client: "ai-usage-tracker · Claude app"),
+                CodeSession(id: "3", project: "Campus Tag", status: .waitingForReply, since: now.addingTimeInterval(-6 * 60), client: "Terminal"),
+                CodeSession(id: "4", project: "Transcript cleanup", status: .finished, since: now.addingTimeInterval(-14 * 60), client: "meeting-scribe · Claude app"),
             ],
             apps: [
                 AppTime(bundleID: "com.lencx.chatgpt", name: "ChatGPT", icon: appIcon("/Applications/ChatGPT.app"), seconds: 72 * 60),
@@ -181,7 +181,8 @@ extension DashboardModel.CodeSession {
         default: session.clientName
         }
         // With a title as the name, keep the folder visible on the second line.
-        if session.title != nil { client = [client, session.project].compactMap { $0 }.joined(separator: " · ") }
+        // Folder first, so a long name cuts off "Claude app" rather than the folder.
+        if session.title != nil { client = [session.project, client].compactMap { $0 }.joined(separator: " · ") }
         self.init(id: session.id, project: session.name, status: status, since: session.since, client: client)
     }
 }
