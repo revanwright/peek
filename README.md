@@ -26,6 +26,18 @@ A native macOS menu bar app that shows how much of my Claude plan limit I've use
 - **Settings window** with standard Mac tabs: General, Sources, Notifications, Account.
 - Full light and dark mode support, using system fonts and materials.
 
+## Download
+
+Grab `Peek-<version>.zip` from the [latest release](https://github.com/revanwright/peek/releases/latest), unzip it, and move **Peek** to your Applications folder. It needs macOS 15 or later and a Claude account.
+
+Peek isn't signed by a paid Apple developer account, so the first time you open it macOS will say it can't verify the developer:
+
+1. Try to open Peek once, and close the warning.
+2. Open **System Settings → Privacy & Security**, scroll down, and click **Open Anyway** next to the message about Peek.
+3. Confirm, and Peek's ring appears in your menu bar. Click it to sign in to claude.ai.
+
+Everything stays on your Mac: your claude.ai sign-in is saved in your Keychain, and nothing is sent anywhere except claude.ai. To build it yourself instead, see [Building](#building).
+
 ## How the limit reading works
 
 Anthropic doesn't offer an official API for plan usage, so the app reads the same data claude.ai's own Usage page uses:
@@ -59,6 +71,7 @@ Notes:
 
 - The build uses the macOS 26 SDK. The macOS 27 SDK's SwiftUI needs a compiler plugin that only ships with Xcode.
 - If a code-signing certificate named `AI Usage Tracker Dev` exists in your login keychain, builds are signed with it; otherwise they're signed ad hoc.
+- `./scripts/package-release.sh` makes the shareable zip in `build/release`. It strips the debugging info the compiler leaves in (which records the build Mac's folder paths), re-signs, and refuses to finish if any such path remains.
 - Diagnostic log: `~/Library/Logs/AIUsageTracker/app.log` (never contains secrets).
 
 ## Project layout
