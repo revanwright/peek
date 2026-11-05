@@ -134,6 +134,8 @@ final class ChatStore {
         let workspace = NSWorkspace.shared
         let hasApp = workspace.urlForApplication(withBundleIdentifier: claudeAppID) != nil
         let address = hasApp ? "claude://claude.ai/chat/\(chatID)" : "https://claude.ai/chat/\(chatID)"
-        if let url = URL(string: address) { workspace.open(url) }
+        guard let url = URL(string: address) else { return }
+        let opened = workspace.open(url)
+        Log.write("chats: opened \(hasApp ? "claude://" : "https://") link for \(chatID.prefix(8)) → \(opened ? "ok" : "failed")")
     }
 }
