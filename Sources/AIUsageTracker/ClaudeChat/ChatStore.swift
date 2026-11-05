@@ -36,6 +36,7 @@ final class ChatStore {
     private var replyFinished: [String: Date] = [:]
     private var lastCheck = Date.distantPast
     private var checkSoon = false
+    private var lastRecentCount = -1
     private var loop: Task<Void, Never>?
 
     init(usage: UsageStore) {
@@ -74,6 +75,10 @@ final class ChatStore {
         }
         guard let activity = await usage.chatActivity(recentWithin: showFor) else { return }
         lastCheck = .now
+        if activity.count != lastRecentCount {
+            lastRecentCount = activity.count
+            Log.write("chats: checked, \(activity.count) chat(s) active in the last 10 minutes")
+        }
 
         let now = Date()
         var next: [Chat] = []
