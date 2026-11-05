@@ -128,8 +128,10 @@ private struct ClaudeLimitCard: View {
                     LimitRing(
                         title: "Weekly",
                         window: weekly,
-                        resetText: { "Resets \($0.formatted(.dateTime.weekday(.abbreviated).hour().minute()))" }
+                        resetText: { "Resets \($0.formatted(.dateTime.weekday(.abbreviated).hour().minute()))" },
+                        paceText: { now in PaceLine(weekly, now: now) }
                     )
+                    .help("The pace line assumes you keep using Claude at your average rate so far this week")
                 }
             }
 
@@ -150,6 +152,8 @@ private struct LimitRing: View {
     let title: String
     let window: DashboardModel.ClaudeLimit.Window
     let resetText: (Date) -> String
+    /// An optional extra line under the reset time (the weekly pace).
+    var paceText: ((Date) -> PaceLine?)? = nil
 
     var body: some View {
         VStack(spacing: 10) {
@@ -157,11 +161,20 @@ private struct LimitRing: View {
             VStack(spacing: 2) {
                 Text(title)
                     .font(.subheadline.weight(.medium))
-                TimelineView(.everyMinute) { _ in
-                    Text(window.resetsAt.map(resetText) ?? "Not started yet")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
+                TimelineView(.everyMinute) { context in
+                    VStack(spacing: 2) {
+                        Text(window.resetsAt.map(resetText) ?? "Not started yet")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                        if let pace = paceText?(context.date) {
+                            Text(pace.text)
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(pace.tint)
+                                .multilineTextAlignment(.center)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
                 }
             }
         }
@@ -222,6 +235,46 @@ private struct MessageCard<Actions: View>: View {
 extension MessageCard where Actions == EmptyView {
     init(symbol: String?, title: String, detail: String?) {
         self.init(symbol: symbol, title: title, detail: detail) { EmptyView() }
+    }
+}
+
+/// The weekly pace in words: "On pace to last until reset" (green) or
+/// "On pace to hit limit Friday morning" (orange).
+struct PaceLine {
+    let text: String
+    let tint: Color
+
+    init?(_ window: DashboardModel.ClaudeLimit.Window, now: Date) {
+        switch UsagePace.project(percent: window.percent, resetsAt: window.resetsAt, now: now) {
+        case nil:
+            return nil
+        case .onTrack?:
+            text = "On pace to last until reset"
+            tint = .green
+        case .willHitLimit(let date)?:
+            text = "On pace to hit limit \(Self.friendlyTime(date, now: now))"
+            tint = .orange
+        }
+    }
+
+    /// "this afternoon", "tomorrow morning", "Friday evening", "early Saturday".
+    static func friendlyTime(_ date: Date, now: Date, calendar: Calendar = .current) -> String {
+        let hour = calendar.component(.hour, from: date)
+        let part = switch hour {
+        case 5..<12: "morning"
+        case 12..<17: "afternoon"
+        case 17..<21: "evening"
+        default: "night"
+        }
+        if hour < 5 {
+            // Small hours read better as "early Saturday" than "Saturday night".
+            if calendar.isDate(date, inSameDayAs: now) { return "early this morning" }
+            if calendar.isDateInTomorrow(date) { return "early tomorrow" }
+            return "early \(date.formatted(.dateTime.weekday(.wide)))"
+        }
+        if calendar.isDate(date, inSameDayAs: now) { return part == "night" ? "tonight" : "this \(part)" }
+        if calendar.isDateInTomorrow(date) { return "tomorrow \(part)" }
+        return "\(date.formatted(.dateTime.weekday(.wide))) \(part)"
     }
 }
 

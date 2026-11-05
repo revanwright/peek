@@ -9,3 +9,7 @@ mkdir -p build
 echo "== App time counting"
 swiftc "${FLAGS[@]}" Sources/AIUsageTracker/AppTime/AppTimeLedger.swift Tests/AppTimeCheck/main.swift -o build/apptime-check
 build/apptime-check
+
+echo "== Weekly pace"
+swiftc "${FLAGS[@]}" Sources/AIUsageTracker/ClaudeLimit/UsagePace.swift Tests/PaceCheck/main.swift -o build/pace-check
+build/pace-check

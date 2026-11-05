@@ -18,7 +18,7 @@ A native macOS menu bar app that shows how much of my Claude plan limit I've use
 ## What it does
 
 - **Menu bar ring** that fills up with your current 5-hour Claude usage and shifts from green to orange to red.
-- **Dropdown** with rings for the current session and the weekly limit, plus reset times.
+- **Dropdown** with rings for the current session and the weekly limit, plus reset times. Under the weekly ring, a pace line projects your average rate so far this week: "On pace to last until reset" in green, or "On pace to hit limit Friday evening" in orange. It stays quiet for the first 12 hours of the week.
 - **Claude Code sessions**: each open session's status (working, needs permission, waiting for your reply, finished), reported by Claude Code hooks. Works in the terminal, the VS Code extension, and the Claude desktop app's Code tab. Sessions in the Claude app are named by their title there ("Fix login bug"), with the project folder underneath; elsewhere they're named by project folder.
 - **Claude Chat**: regular chats (in the Claude app, on the web, or on your phone) show "Working" while Claude writes a reply and "Finished" for 10 minutes after. Tap one to open it in the Claude app.
 - **AI Apps Today**: time spent in other AI apps (ChatGPT, Muse, or any app you add), counted only while the app is in front and you're actually at the Mac (pauses when idle 2+ minutes, locked, or asleep). No special permissions needed.
