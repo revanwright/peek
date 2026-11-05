@@ -1,4 +1,4 @@
-# AI Usage Tracker
+# Peek
 
 A native macOS menu bar app that shows how much of my Claude plan limit I've used, built with SwiftUI.
 

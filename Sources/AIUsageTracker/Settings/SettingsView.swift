@@ -99,7 +99,7 @@ private struct AboutRow: View {
                 .resizable()
                 .frame(width: 40, height: 40)
             VStack(alignment: .leading, spacing: 2) {
-                Text("AI Usage Tracker").font(.headline)
+                Text("Peek").font(.headline)
                 Text(version).font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
@@ -172,7 +172,7 @@ private struct SourcesTab: View {
             Button("Connect", action: hooks.install)
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This adds AI Usage Tracker's hooks to ~/.claude/settings.json so Claude Code can report each session's status. A backup of the file is saved first, and your other settings aren't changed.")
+            Text("This adds Peek's hooks to ~/.claude/settings.json so Claude Code can report each session's status. A backup of the file is saved first, and your other settings aren't changed.")
         }
     }
 }

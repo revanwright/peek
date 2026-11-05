@@ -71,7 +71,7 @@ struct UsagePanel: View {
             IconButton(symbol: "gearshape", help: "Settings…") {
                 showSettings(nil)
             }
-            IconButton(symbol: "power", help: "Quit AI Usage Tracker") {
+            IconButton(symbol: "power", help: "Quit Peek") {
                 NSApp.terminate(nil)
             }
         }

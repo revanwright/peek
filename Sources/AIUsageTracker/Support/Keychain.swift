@@ -4,7 +4,7 @@ import Security
 /// Stores small secrets (like the claude.ai session key) in the macOS Keychain
 /// as "generic password" items owned by this app.
 enum Keychain {
-    private static let service = "com.evanwright.AIUsageTracker"
+    private static let service = "com.peekmenubar.app"
 
     enum Account: String {
         case claudeSessionKey = "claude.ai session key"

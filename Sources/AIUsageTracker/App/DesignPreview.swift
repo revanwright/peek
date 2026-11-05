@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Launch options for reviewing the design with clearly-labeled sample data:
-///   open "AI Usage Tracker.app" --args --design-preview [--appearance light|dark] [--snapshot <folder>]
+///   open "Peek.app" --args --design-preview [--appearance light|dark] [--snapshot <folder>]
 ///
 /// Preview mode never reads your Keychain or contacts claude.ai.
 enum DesignPreview {

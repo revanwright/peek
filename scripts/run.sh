@@ -7,12 +7,12 @@ cd "$(dirname "$0")/.."
 
 ./scripts/build-app.sh
 
-INSTALLED="$HOME/Applications/AI Usage Tracker.app"
+INSTALLED="$HOME/Applications/Peek.app"
 pkill -x AIUsageTracker 2>/dev/null || true
 sleep 0.5
 mkdir -p "$HOME/Applications"
 rm -rf "$INSTALLED"
-cp -R "build/AI Usage Tracker.app" "$INSTALLED"
+cp -R "build/Peek.app" "$INSTALLED"
 
 if [ $# -gt 0 ]; then
     open "$INSTALLED" --args "$@"

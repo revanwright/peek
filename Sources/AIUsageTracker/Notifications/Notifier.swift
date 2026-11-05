@@ -149,7 +149,7 @@ final class Notifier: NSObject {
     // MARK: - Sending
 
     func sendTest() {
-        send(id: "test-\(UUID().uuidString)", title: "Notifications are working", body: "This is how AI Usage Tracker will let you know about your Claude usage.")
+        send(id: "test-\(UUID().uuidString)", title: "Notifications are working", body: "This is how Peek will let you know about your Claude usage.")
     }
 
     private func send(id: String, title: String, body: String, userInfo: [String: String] = [:]) {

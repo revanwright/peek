@@ -33,7 +33,7 @@ enum MenuBarIcon {
             return true
         }
         image.isTemplate = false
-        image.accessibilityDescription = percent.map { "Claude usage \(Int($0.rounded())) percent" } ?? "AI Usage Tracker"
+        image.accessibilityDescription = percent.map { "Claude usage \(Int($0.rounded())) percent" } ?? "Peek"
         return image
     }
 

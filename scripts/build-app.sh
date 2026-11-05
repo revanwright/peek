@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds "AI Usage Tracker.app" into ./build without Xcode, using Apple's
+# Builds "Peek.app" into ./build without Xcode, using Apple's
 # Swift compiler from the Command Line Tools directly.
 #
 # Signing: if a code-signing certificate named "AI Usage Tracker Dev" exists in
@@ -9,7 +9,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-APP="build/AI Usage Tracker.app"
+APP="build/Peek.app"
 CERT_NAME="AI Usage Tracker Dev"
 OPTIMIZE="${OPTIMIZE:--Onone}"   # OPTIMIZE=-O for a faster release build
 
@@ -51,7 +51,7 @@ if security find-identity -p codesigning 2>/dev/null | grep -q "\"$CERT_NAME\"";
 else
     IDENTITY="-"
 fi
-codesign --force --sign "$IDENTITY" --identifier com.evanwright.AIUsageTracker.hook "$APP/Contents/Helpers/ai-usage-hook"
-codesign --force --sign "$IDENTITY" --identifier com.evanwright.AIUsageTracker "$APP"
+codesign --force --sign "$IDENTITY" --identifier com.peekmenubar.app.hook "$APP/Contents/Helpers/ai-usage-hook"
+codesign --force --sign "$IDENTITY" --identifier com.peekmenubar.app "$APP"
 
 echo "Built: $APP (signed with: ${IDENTITY/-/ad hoc})"

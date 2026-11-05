@@ -3,11 +3,11 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleName</key>
-    <string>AI Usage Tracker</string>
+    <string>Peek</string>
     <key>CFBundleDisplayName</key>
-    <string>AI Usage Tracker</string>
+    <string>Peek</string>
     <key>CFBundleIdentifier</key>
-    <string>com.evanwright.AIUsageTracker</string>
+    <string>com.peekmenubar.app</string>
     <key>CFBundleExecutable</key>
     <string>AIUsageTracker</string>
     <key>CFBundleIconFile</key>
