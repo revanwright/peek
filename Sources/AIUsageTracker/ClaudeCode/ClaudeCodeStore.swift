@@ -22,6 +22,8 @@ final class ClaudeCodeStore {
         let entrypoint: String?
         /// The session's title in the Claude app ("Chat A"). nil elsewhere.
         var title: String? = nil
+        /// The Claude app's own ID for the session ("local_..."), used to open it.
+        var appSessionID: String? = nil
 
         /// What to call the session: its Claude app title, else its project folder.
         var name: String { title ?? project }
@@ -95,7 +97,7 @@ final class ClaudeCodeStore {
     func reload() {
         let files = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? []
         var found: [Session] = []
-        var titles: [String: String]?
+        var titles: [String: ClaudeAppTitles.Info]?
         for file in files where file.pathExtension == "json" {
             guard let data = try? Data(contentsOf: file),
                   let record = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
@@ -112,12 +114,13 @@ final class ClaudeCodeStore {
             let status = (record["status"] as? String).flatMap(Session.Status.init) ?? .idle
             let since = (record["status_since"] as? NSNumber).map { Date(timeIntervalSince1970: $0.doubleValue) } ?? updated
             let entrypoint = record["entrypoint"] as? String
-            var title: String?
+            var info: ClaudeAppTitles.Info?
             if entrypoint == "claude-desktop" {
                 if titles == nil { titles = ClaudeAppTitles.load() }
-                title = titles?[id]
+                info = titles?[id]
             }
-            found.append(Session(id: id, cwd: cwd, status: status, since: since, entrypoint: entrypoint, title: title))
+            found.append(Session(id: id, cwd: cwd, status: status, since: since, entrypoint: entrypoint,
+                                 title: info?.title, appSessionID: info?.appSessionID))
         }
         found.sort { $0.since > $1.since }
         guard found != sessions else { return }
@@ -152,7 +155,13 @@ final class ClaudeCodeStore {
             guard let vscode = workspace.urlForApplication(withBundleIdentifier: "com.microsoft.VSCode") else { return }
             workspace.open([URL(fileURLWithPath: session.cwd)], withApplicationAt: vscode, configuration: NSWorkspace.OpenConfiguration())
         case "claude-desktop":
-            if let claude = workspace.urlForApplication(withBundleIdentifier: "com.anthropic.claudefordesktop") {
+            // Opens that exact session (the link the Claude app's own Dock menu uses);
+            // without its ID, just bring the Claude app forward.
+            if let appID = session.appSessionID,
+               let link = URL(string: "claude://code/continue?session=\(appID)"),
+               workspace.urlForApplication(toOpen: link) != nil {
+                workspace.open(link)
+            } else if let claude = workspace.urlForApplication(withBundleIdentifier: "com.anthropic.claudefordesktop") {
                 workspace.openApplication(at: claude, configuration: NSWorkspace.OpenConfiguration())
             }
         default:
