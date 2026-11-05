@@ -69,13 +69,17 @@ final class ClaudeUsageClient {
         let name: String
         let updatedAt: Date
         let isReplying: Bool
+        /// When the newest message in the chat was sent.
+        let lastMessageAt: Date?
     }
 
     /// Checks your most recent chats for one that's still being answered.
     ///
-    /// claude.ai's own web app asks the same question when you reload a page mid-reply:
-    /// `completion_status` answers `{"is_pending": true}` while Claude is still writing.
-    /// Only chats updated within `recentWithin` are checked, so this stays to a few small requests.
+    /// claude.ai saves Claude's reply only once it's finished, so while Claude is writing,
+    /// the newest message in the chat is still yours. (Verified live: a reply that took two
+    /// minutes appeared in the chat at the moment it finished.) Each chat lists its newest
+    /// message's ID, so the full chat is downloaded only when that ID changes, about twice
+    /// per question. A reply that failed shows up through `completion_status`'s `is_error`.
     func fetchChatActivity(recentWithin: TimeInterval) async throws -> [ChatActivity] {
         try await loadClaudeOrigin(force: false)
         let orgID = try await resolveOrganization()
@@ -83,16 +87,33 @@ final class ClaudeUsageClient {
 
         let script = """
         const opts = { credentials: 'include', headers: { 'accept': 'application/json' } };
-        const list = await fetch(`/api/organizations/${org}/chat_conversations_v2?limit=5&consistency=eventual`, opts);
+        const base = `/api/organizations/${org}/chat_conversations`;
+        const known = (window.__aiUsageNewest = window.__aiUsageNewest || {});
+        const list = await fetch(`${base}_v2?limit=5&consistency=eventual`, opts);
         if (!list.ok) return { status: list.status };
         const recent = ((await list.json()).data || [])
             .filter(c => Date.now() - Date.parse(c.updated_at) <= recentMs);
         const chats = await Promise.all(recent.map(async c => {
-            const r = await fetch(`/api/organizations/${org}/chat_conversations/${c.uuid}/completion_status?poll=false`, opts);
-            const s = r.ok ? await r.json() : {};
-            return { id: c.uuid, name: c.name || '', updatedAt: Date.parse(c.updated_at) / 1000, replying: s.is_pending === true };
+            const newestID = c.current_leaf_message_uuid;
+            let newest = newestID && known[newestID];
+            if (!newest) {
+                const r = await fetch(`${base}/${c.uuid}?tree=True&rendering_mode=messages&consistency=strong`, opts);
+                if (!r.ok) return null;
+                const t = await r.json();
+                const msgs = t.chat_messages || [];
+                const id = newestID || t.current_leaf_message_uuid;
+                const m = msgs.find(x => x.uuid === id) || msgs[msgs.length - 1];
+                newest = m ? { sender: m.sender, at: Date.parse(m.created_at) / 1000 } : { sender: 'none', at: 0 };
+                if (id) known[id] = newest;
+            }
+            let replying = newest.sender === 'human';
+            if (replying) {
+                const s = await fetch(`${base}/${c.uuid}/completion_status?poll=false`, opts);
+                if (s.ok && (await s.json()).is_error === true) replying = false;
+            }
+            return { id: c.uuid, name: c.name || '', updatedAt: Date.parse(c.updated_at) / 1000, replying, sentAt: newest.at };
         }));
-        return { status: 200, chats };
+        return { status: 200, chats: chats.filter(Boolean) };
         """
         let result = try await webView.callAsyncJavaScript(
             script,
@@ -110,11 +131,13 @@ final class ClaudeUsageClient {
         let rows = dict["chats"] as? [[String: Any]] ?? []
         return rows.compactMap { row in
             guard let id = row["id"] as? String, let updated = (row["updatedAt"] as? NSNumber)?.doubleValue else { return nil }
+            let sent = (row["sentAt"] as? NSNumber)?.doubleValue ?? 0
             return ChatActivity(
                 id: id,
                 name: row["name"] as? String ?? "",
                 updatedAt: Date(timeIntervalSince1970: updated),
-                isReplying: (row["replying"] as? NSNumber)?.boolValue ?? false
+                isReplying: (row["replying"] as? NSNumber)?.boolValue ?? false,
+                lastMessageAt: sent > 0 ? Date(timeIntervalSince1970: sent) : nil
             )
         }
     }

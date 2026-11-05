@@ -5,10 +5,9 @@ import Observation
 /// Shows when a regular Claude chat is replying.
 ///
 /// Chats have no hooks like Claude Code does, so this asks claude.ai directly, through
-/// the same signed-in hidden browser that reads your limit. It looks at your 5 most
-/// recent chats, and for any touched in the last 10 minutes asks claude.ai whether
-/// a reply is still being written. That covers chats in the Claude app, on the web,
-/// and on your phone.
+/// the same signed-in hidden browser that reads your limit. claude.ai saves Claude's
+/// reply only when it's finished, so a recent chat whose newest message is yours is
+/// still being answered. That covers chats in the Claude app, on the web, and on your phone.
 ///
 /// It checks more often while it matters (a reply in progress, or the Claude app in front)
 /// and rarely when you're away, to keep requests to claude.ai light.
@@ -30,6 +29,9 @@ final class ChatStore {
     nonisolated static let claudeAppID = "com.anthropic.claudefordesktop"
     /// How long a finished chat stays listed.
     private let showFor: TimeInterval = 10 * 60
+    /// Longest a reply is assumed to take (research can run long). A message still
+    /// unanswered after this most likely failed, so it stops showing as Working.
+    private let longestReply: TimeInterval = 30 * 60
 
     private let usage: UsageStore
     private var replyStarted: [String: Date] = [:]
@@ -73,7 +75,7 @@ final class ChatStore {
             if !chats.isEmpty { chats = [] }
             return
         }
-        guard let activity = await usage.chatActivity(recentWithin: showFor) else {
+        guard let activity = await usage.chatActivity(recentWithin: longestReply) else {
             // Not ready yet (still reading the limit) or claude.ai was unreachable: try again in 15 seconds.
             lastCheck = Date().addingTimeInterval(15 - nextDelay())
             return
@@ -81,14 +83,15 @@ final class ChatStore {
         lastCheck = .now
         if activity.count != lastRecentCount {
             lastRecentCount = activity.count
-            Log.write("chats: checked, \(activity.count) chat(s) active in the last 10 minutes")
+            Log.write("chats: checked, \(activity.count) chat(s) active in the last 30 minutes")
         }
 
         let now = Date()
         var next: [Chat] = []
         for chat in activity {
-            if chat.isReplying {
-                let started = replyStarted[chat.id] ?? now
+            let sent = chat.lastMessageAt ?? chat.updatedAt
+            if chat.isReplying, now.timeIntervalSince(sent) < longestReply {
+                let started = replyStarted[chat.id] ?? sent
                 if replyStarted[chat.id] == nil { Log.write("chats: a reply started") }
                 replyStarted[chat.id] = started
                 replyFinished[chat.id] = nil
@@ -100,6 +103,7 @@ final class ChatStore {
                     Notifier.shared.chatFinished(id: chat.id, name: chat.name)
                 }
                 let finished = max(chat.updatedAt, replyFinished[chat.id] ?? .distantPast)
+                guard !chat.isReplying, now.timeIntervalSince(finished) < showFor else { continue }
                 next.append(Chat(id: chat.id, name: chat.name, isReplying: false, since: finished))
             }
         }
