@@ -9,6 +9,7 @@ A native macOS menu bar app that shows how much of my Claude plan limit I've use
 - **Menu bar ring** that fills up with your current 5-hour Claude usage and shifts from green to orange to red.
 - **Dropdown** with rings for the current session and the weekly limit, plus reset times.
 - **Claude Code sessions**: each open session's project and status (working, needs permission, waiting for your reply, finished), reported by Claude Code hooks. Works in the terminal, the VS Code extension, and the Claude desktop app's Code tab.
+- **Claude Chat**: regular chats (in the Claude app, on the web, or on your phone) show "Working" while Claude writes a reply and "Finished" for 10 minutes after. Tap one to open it in the Claude app.
 - **AI Apps Today**: time spent in other AI apps (ChatGPT, Muse, or any app you add), counted only while the app is in front and you're actually at the Mac (pauses when idle 2+ minutes, locked, or asleep). No special permissions needed.
 - **Notifications** when you reach your warning level (80% by default), when a limit you pushed past it resets, and when a Claude Code session needs you.
 - **Settings window** with standard Mac tabs: General, Sources, Notifications, Account.
@@ -28,7 +29,7 @@ Because this relies on an undocumented endpoint, it can break if claude.ai chang
 
 Claude Code can run a command on events like "a prompt was sent" or "Claude stopped" ([hooks](https://code.claude.com/docs/en/hooks)). The app ships a tiny helper, `ai-usage-hook`, that records each session's latest status in `~/Library/Application Support/AIUsageTracker/sessions/`. The helper prints nothing (hook output can reach Claude's conversation) and always exits immediately.
 
-Regular Claude chats aren't shown: they have no hooks, the Claude app doesn't record when a reply starts or finishes, and since Anthropic merged Cowork into chat (September 2026) agentic work runs in a cloud sandbox rather than on the Mac.
+Regular Claude chats have no hooks, and the Claude app doesn't record when a reply starts or finishes. Instead, the app asks claude.ai, the same way claude.ai's own web page does when you reload in the middle of a reply: its unofficial `completion_status` request answers `is_pending: true` while a reply is still being written. The app checks only your 5 most recent chats, and only those touched in the last 10 minutes, every 8 to 45 seconds depending on activity (every 3 minutes when you're away). Like the limit reading, this is undocumented and could change. (Cowork tracking was built and later removed: Anthropic merged Cowork into chat in September 2026.)
 
 Settings → Sources → **Connect** adds the hooks to `~/.claude/settings.json` (backing the file up first); **Disconnect** removes only the app's own entries.
 
