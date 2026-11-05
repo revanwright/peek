@@ -20,6 +20,11 @@ final class ClaudeCodeStore {
         let status: Status
         let since: Date
         let entrypoint: String?
+        /// The session's title in the Claude app ("Chat A"). nil elsewhere.
+        var title: String? = nil
+
+        /// What to call the session: its Claude app title, else its project folder.
+        var name: String { title ?? project }
 
         /// The app the session runs in, for display ("VS Code", ...). nil if unknown.
         var clientName: String? {
@@ -90,6 +95,7 @@ final class ClaudeCodeStore {
     func reload() {
         let files = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? []
         var found: [Session] = []
+        var titles: [String: String]?
         for file in files where file.pathExtension == "json" {
             guard let data = try? Data(contentsOf: file),
                   let record = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
@@ -105,7 +111,13 @@ final class ClaudeCodeStore {
 
             let status = (record["status"] as? String).flatMap(Session.Status.init) ?? .idle
             let since = (record["status_since"] as? NSNumber).map { Date(timeIntervalSince1970: $0.doubleValue) } ?? updated
-            found.append(Session(id: id, cwd: cwd, status: status, since: since, entrypoint: record["entrypoint"] as? String))
+            let entrypoint = record["entrypoint"] as? String
+            var title: String?
+            if entrypoint == "claude-desktop" {
+                if titles == nil { titles = ClaudeAppTitles.load() }
+                title = titles?[id]
+            }
+            found.append(Session(id: id, cwd: cwd, status: status, since: since, entrypoint: entrypoint, title: title))
         }
         found.sort { $0.since > $1.since }
         guard found != sessions else { return }

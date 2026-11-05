@@ -124,11 +124,11 @@ final class Notifier: NSObject {
         let client = session.clientName.map { " in \($0)" } ?? ""
         switch session.status {
         case .needsPermission where Preferences.isOn(PrefKey.sessionAlertPermission):
-            return ("\(session.project) needs permission", "Claude Code is waiting for you to approve an action\(client).")
+            return ("\(session.name) needs permission", "Claude Code is waiting for you to approve an action\(client).")
         case .waitingForReply where Preferences.isOn(PrefKey.sessionAlertReply):
-            return ("\(session.project) is waiting for your reply", "Claude Code asked you a question\(client).")
+            return ("\(session.name) is waiting for your reply", "Claude Code asked you a question\(client).")
         case .finished where Preferences.isOn(PrefKey.sessionAlertFinished, default: false):
-            return ("\(session.project) finished", "Claude Code is done and ready for your next message\(client).")
+            return ("\(session.name) finished", "Claude Code is done and ready for your next message\(client).")
         default:
             return nil
         }

@@ -176,11 +176,13 @@ extension DashboardModel.CodeSession {
         case .waitingForReply: .waitingForReply
         case .finished: .finished
         }
-        let client: String? = switch session.entrypoint {
+        var client: String? = switch session.entrypoint {
         case "claude-desktop": "Claude app"
         default: session.clientName
         }
-        self.init(id: session.id, project: session.project, status: status, since: session.since, client: client)
+        // With a title as the name, keep the folder visible on the second line.
+        if session.title != nil { client = [client, session.project].compactMap { $0 }.joined(separator: " · ") }
+        self.init(id: session.id, project: session.name, status: status, since: session.since, client: client)
     }
 }
 
